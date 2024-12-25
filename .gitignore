@@ -46,3 +46,6 @@ app.*.map.json
 
 # macOS
 .DS_Store
+
+# vscode
+.vscode/
