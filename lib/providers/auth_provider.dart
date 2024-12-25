@@ -17,8 +17,16 @@ class AuthProvider with ChangeNotifier {
 
     try {
       await _navidromeService.init();
-      final isConnected = await _navidromeService.ping();
-      _isLoggedIn = isConnected;
+      final serverUrl = await _navidromeService.getServerUrl();
+      final username = await _navidromeService.getUsername();
+      final token = await _navidromeService.getToken();
+      
+      if (serverUrl != null && username != null && token != null) {
+        final isConnected = await _navidromeService.ping();
+        _isLoggedIn = isConnected;
+      } else {
+        _isLoggedIn = false;
+      }
       _error = null;
     } catch (e) {
       _error = e.toString();
