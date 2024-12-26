@@ -5,8 +5,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/artist.dart';
 import '../models/album.dart';
 import '../models/song.dart';
+import 'music_service.dart';
 
-class NavidromeService {
+class NavidromeService implements MusicService {
   late final Dio _dio;
   final FlutterSecureStorage _secureStorage;
   String? _serverUrl;
@@ -69,6 +70,7 @@ class NavidromeService {
     ));
   }
 
+  @override
   Future<void> init() async {
     try {
       _serverUrl = await _secureStorage.read(key: 'serverUrl');
@@ -110,7 +112,7 @@ class NavidromeService {
 
       _username = username;
       
-      // 直接使用密码的 MD5 作为 token
+      // 直接使用��码的 MD5 作为 token
       _token = md5.convert(utf8.encode(password)).toString();
       _salt = '';
       
@@ -150,7 +152,7 @@ class NavidromeService {
     } catch (e) {
       if (e is DioException) {
         if (e.type == DioExceptionType.connectionTimeout) {
-          print('登录失败: 连接超时');
+          print('登录失败: 连接超���');
         } else if (e.type == DioExceptionType.connectionError) {
           print('登录失败: 连接错误 - ${e.message}');
         } else {
@@ -369,5 +371,10 @@ class NavidromeService {
       print('搜索失败: $e');
       return {};
     }
+  }
+
+  @override
+  Future<bool> isAvailable() async {
+    return await ping();
   }
 } 

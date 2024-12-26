@@ -27,7 +27,19 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('登录到 Navidrome'),
+        title: const Text('登录'),
+        actions: [
+          TextButton(
+            onPressed: () async {
+              final auth = Provider.of<AuthProvider>(context, listen: false);
+              await auth.toggleLocalMode();
+              if (context.mounted) {
+                Navigator.of(context).pushReplacementNamed('/library');
+              }
+            },
+            child: const Text('跳过登录'),
+          ),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -36,11 +48,15 @@ class _LoginPageState extends State<LoginPage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              const Text(
+                '登录到 Navidrome',
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 24),
               TextFormField(
                 controller: _serverController,
                 decoration: const InputDecoration(
                   labelText: '服务器地址',
-                  // hintText: '例如: http://your-server:4533',
                   hintText: 'http://localhost:4533/',
                 ),
                 validator: (value) {

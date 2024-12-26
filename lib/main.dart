@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/library_provider.dart';
+import 'providers/local_library_provider.dart';
 import 'providers/player_provider.dart';
 import 'providers/settings_provider.dart';
 import 'services/navidrome_service.dart';
@@ -31,6 +32,11 @@ class MyApp extends StatelessWidget {
           create: (_) => LibraryProvider(navidromeService),
         ),
         ChangeNotifierProvider(create: (_) => PlayerProvider()),
+        ChangeNotifierProvider(
+          create: (context) => LocalLibraryProvider(
+            context.read<PlayerProvider>(),
+          ),
+        ),
         ChangeNotifierProvider.value(value: settingsProvider),
       ],
       child: Consumer<SettingsProvider>(

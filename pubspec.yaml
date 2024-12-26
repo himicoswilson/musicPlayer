@@ -51,6 +51,8 @@ dependencies:
   crypto: ^3.0.3
   audio_service: ^0.18.16
   flutter_colorpicker: ^1.1.0
+  permission_handler: ^11.0.1
+  file_picker: ^6.1.1
 
 dev_dependencies:
   flutter_test:

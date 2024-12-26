@@ -52,7 +52,6 @@ class MiniPlayer extends StatelessWidget {
               BottomToTopPageRoute(
                 child: PlayerPage(
                   song: currentSong,
-                  streamUrl: provider.getStreamUrl(currentSong),
                 ),
               ),
             );
@@ -148,7 +147,7 @@ class MiniPlayer extends StatelessWidget {
                           ),
                         ),
                       ),
-                      // 播���控制
+                      // 播放控制
                       Row(
                         children: [
                           IconButton(

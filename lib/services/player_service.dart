@@ -1,13 +1,19 @@
 import 'package:just_audio/just_audio.dart';
 import 'package:audio_service/audio_service.dart';
 import '../models/song.dart';
-import '../services/navidrome_service.dart';
+import 'music_service.dart';
 
 class PlayerService {
   AudioPlayer? _player;
   AudioHandler? _audioHandler;
-  final NavidromeService _navidromeService = NavidromeService();
+  MusicService? _currentMusicService;
   bool _initialized = false;
+  static bool _isInitializing = false;
+  
+  // 状态监听回调
+  Function(Duration)? onPositionChanged;
+  Function(Duration)? onDurationChanged;
+  Function(bool)? onPlayingChanged;
   
   // 单例模式
   static final PlayerService _instance = PlayerService._internal();
@@ -18,22 +24,46 @@ class PlayerService {
   }
 
   Future<void> _init() async {
-    if (_initialized) return;
+    if (_initialized || _isInitializing) return;
     
     try {
-      _audioHandler = await AudioService.init(
-        builder: () => MyAudioHandler(),
-        config: const AudioServiceConfig(
-          androidNotificationChannelId: 'com.myapp.audio',
-          androidNotificationChannelName: 'Audio Service',
-          androidNotificationOngoing: true,
-          androidStopForegroundOnPause: true,
-        ),
-      );
+      _isInitializing = true;
+      
+      // 确保 AudioService 只初始化一次
+      if (_audioHandler == null) {
+        _audioHandler = await AudioService.init(
+          builder: () => MyAudioHandler(),
+          config: const AudioServiceConfig(
+            androidNotificationChannelId: 'com.myapp.audio',
+            androidNotificationChannelName: 'Audio Service',
+            androidNotificationOngoing: true,
+            androidStopForegroundOnPause: true,
+          ),
+        );
+      }
+      
       _player = (_audioHandler as MyAudioHandler).player;
+      
+      // 添加状态监听
+      _player?.positionStream.listen((position) {
+        onPositionChanged?.call(position);
+      });
+      
+      _player?.durationStream.listen((duration) {
+        if (duration != null) {
+          onDurationChanged?.call(duration);
+        }
+      });
+      
+      _player?.playingStream.listen((playing) {
+        onPlayingChanged?.call(playing);
+      });
+      
       _initialized = true;
     } catch (e) {
       print('初始化播放器失败: $e');
+    } finally {
+      _isInitializing = false;
     }
   }
 
@@ -44,20 +74,28 @@ class PlayerService {
     return _player!;
   }
 
+  void setMusicService(MusicService service) {
+    _currentMusicService = service;
+  }
+
   // 播放歌曲
-  Future<void> play(String url) async {
+  Future<void> play(Song song) async {
     if (!_initialized) await _init();
+    if (_currentMusicService == null) {
+      throw StateError('未设置音乐服务');
+    }
     try {
+      final url = _currentMusicService!.getStreamUrl(song.id);
+      final coverArtUrl = _currentMusicService!.getCoverArtUrl(song.coverArtId);
+      
       await _audioHandler?.playMediaItem(
         MediaItem(
           id: url,
-          album: _currentSong?.albumName ?? '',
-          title: _currentSong?.title ?? '',
-          artist: _currentSong?.artistName ?? '',
-          duration: Duration(seconds: _currentSong?.duration ?? 0),
-          artUri: _currentSong?.coverArtId != null 
-              ? Uri.parse(_getCoverArtUrl(_currentSong!.coverArtId!))
-              : null,
+          album: song.albumName ?? '',
+          title: song.title,
+          artist: song.artistName ?? '',
+          duration: Duration(seconds: song.duration),
+          artUri: coverArtUrl.isNotEmpty ? Uri.parse(coverArtUrl) : null,
         ),
       );
     } catch (e) {
@@ -122,15 +160,6 @@ class PlayerService {
     await _audioHandler?.stop();
     _initialized = false;
   }
-
-  Song? _currentSong;
-  void updateCurrentSong(Song song) {
-    _currentSong = song;
-  }
-
-  String _getCoverArtUrl(String coverArtId) {
-    return _navidromeService.getCoverArtUrl(coverArtId);
-  }
 }
 
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
@@ -151,8 +180,15 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   Future<void> playMediaItem(MediaItem mediaItem) async {
     try {
       await _player.setAudioSource(AudioSource.uri(Uri.parse(mediaItem.id)));
-      mediaItem = mediaItem.copyWith(duration: _player.duration);
+      // 等待获取实际时长
+      await _player.load();
+      final duration = _player.duration;
+      if (duration != null) {
+        mediaItem = mediaItem.copyWith(duration: duration);
+      }
+      _mediaItems.clear();  // 清除之前的媒体项
       _mediaItems.add(mediaItem);
+      mediaItem = mediaItem.copyWith(duration: _player.duration);
       await _player.play();
     } catch (e) {
       print('Error playing media item: $e');

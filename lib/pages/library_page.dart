@@ -1,47 +1,138 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/library_provider.dart';
+import '../providers/local_library_provider.dart';
 import '../providers/player_provider.dart';
 import '../providers/settings_provider.dart';
+import '../providers/auth_provider.dart';
 import '../models/artist.dart';
 import '../models/album.dart';
 import '../models/song.dart';
+import '../models/local_song.dart';
 import '../widgets/mini_player.dart';
 import '../services/navidrome_service.dart';
 import 'player_page.dart';
 
 class LibraryPage extends StatefulWidget {
-  const LibraryPage({super.key});
+  const LibraryPage({Key? key}) : super(key: key);
 
   @override
   State<LibraryPage> createState() => _LibraryPageState();
 }
 
-class _LibraryPageState extends State<LibraryPage> {
+class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+
   @override
   void initState() {
     super.initState();
-    // 页面加载时获取数据
-    Future.microtask(() {
-      final provider = context.read<LibraryProvider>();
-      provider.loadArtists();
-      provider.loadAlbums();
-      provider.loadSongs();
+    
+    // 设置播放状态变化回调
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final auth = context.read<AuthProvider>();
+      
+      // 计算标签页数量
+      int tabCount = 0;
+      if (auth.isLocalMode) tabCount++;
+      if (auth.isNavidromeLoggedIn) tabCount += 3;
+      
+      // 初始化 TabController
+      setState(() {
+        _tabController = TabController(length: tabCount, vsync: this);
+      });
+
+      // 加载数据
+      // 如果开启了本地模式，加载本地音乐
+      if (auth.isLocalMode) {
+        context.read<LocalLibraryProvider>().loadSongs();
+      }
+      
+      // 如果已登录 Navidrome，加载在线音乐
+      if (auth.isNavidromeLoggedIn) {
+        final provider = context.read<LibraryProvider>();
+        provider.loadArtists();
+        provider.loadAlbums();
+        provider.loadSongs();
+      }
     });
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  void _playSong(BuildContext context, Song song) {
+    final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
+    playerProvider.playSong(song);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final showNavidromeContent = auth.isNavidromeLoggedIn;
+    final showLocalContent = auth.isLocalMode;
+
+    // 计算需要显示的标签页数量
+    int tabCount = 0;
+    if (showLocalContent) tabCount++;
+    if (showNavidromeContent) tabCount += 3;
+
     return DefaultTabController(
-      length: 3,
+      length: tabCount,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('音乐库'),
-          bottom: const TabBar(
+          bottom: TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            indicatorSize: TabBarIndicatorSize.tab,
+            labelPadding: const EdgeInsets.symmetric(horizontal: 16),
             tabs: [
-              Tab(text: '歌曲'),
-              Tab(text: '专辑'),
-              Tab(text: '艺术家'),
+              if (showLocalContent)
+                const Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.folder_open),
+                      SizedBox(width: 8),
+                      Text('本地音乐'),
+                    ],
+                  ),
+                ),
+              if (showNavidromeContent) ...[
+                const Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.cloud),
+                      SizedBox(width: 8),
+                      Text('在线歌曲'),
+                    ],
+                  ),
+                ),
+                const Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.album),
+                      SizedBox(width: 8),
+                      Text('在线专辑'),
+                    ],
+                  ),
+                ),
+                const Tab(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.person),
+                      SizedBox(width: 8),
+                      Text('在线艺术家'),
+                    ],
+                  ),
+                ),
+              ],
             ],
           ),
         ),
@@ -50,9 +141,13 @@ class _LibraryPageState extends State<LibraryPage> {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildSongsTab(context),
-                  _buildAlbumsTab(),
-                  _buildArtistsTab(),
+                  if (showLocalContent)
+                    _buildLocalSongsTab(context),
+                  if (showNavidromeContent) ...[
+                    _buildSongsTab(context),
+                    _buildAlbumsTab(),
+                    _buildArtistsTab(),
+                  ],
                 ],
               ),
             ),
@@ -60,6 +155,135 @@ class _LibraryPageState extends State<LibraryPage> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildLocalSongsTab(BuildContext context) {
+    return Consumer2<LocalLibraryProvider, SettingsProvider>(
+      builder: (context, provider, settings, child) {
+        if (provider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (provider.error != null) {
+          return Center(child: Text(provider.error!));
+        }
+
+        if (provider.songs.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.music_note,
+                  size: 64,
+                  color: Colors.grey[400],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '没有找到本地音乐',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/settings');
+                  },
+                  child: const Text('去设置音乐文件夹'),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Text(
+                    '${provider.songs.length} 首歌曲',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    icon: const Icon(Icons.play_circle_filled),
+                    label: const Text('播放全部'),
+                    onPressed: () {
+                      Provider.of<LocalLibraryProvider>(context, listen: false).playAll();
+                    },
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    icon: const Icon(Icons.shuffle),
+                    label: const Text('随机播放'),
+                    onPressed: () {
+                      Provider.of<LocalLibraryProvider>(context, listen: false).playAll(true);
+                    },
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ListView.separated(
+                itemCount: provider.songs.length,
+                separatorBuilder: (context, index) => settings.showListDividers
+                    ? const Divider(height: 1)
+                    : const SizedBox.shrink(),
+                itemBuilder: (context, index) {
+                  final song = provider.songs[index];
+                  final isPlaying = provider.currentSong?.id == song.id;
+                  
+                  return Container(
+                    height: settings.listItemHeight,
+                    child: ListTile(
+                      leading: song.coverData != null
+                          ? Image.memory(
+                              song.coverData!,
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                            )
+                          : Container(
+                              width: 40,
+                              height: 40,
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.music_note, size: 24),
+                            ),
+                      title: Text(
+                        song.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isPlaying ? Theme.of(context).primaryColor : null,
+                          fontWeight: isPlaying ? FontWeight.bold : null,
+                        ),
+                      ),
+                      subtitle: Text(
+                        song.artistName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: isPlaying
+                          ? Icon(
+                              Icons.volume_up,
+                              color: Theme.of(context).primaryColor,
+                            )
+                          : null,
+                      onTap: () {
+                        provider.playSong(song);
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -286,8 +510,8 @@ class _LibraryPageState extends State<LibraryPage> {
                               },
                             ),
                       onTap: () {
-                        final provider = Provider.of<PlayerProvider>(context, listen: false);
-                        provider.playSong(song, provider.getStreamUrl(song));
+                        final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
+                        playerProvider.playSong(song);
                       },
                     ),
                   );
@@ -472,8 +696,7 @@ class _LibraryPageState extends State<LibraryPage> {
                               subtitle: Text(song.artistName),
                               trailing: Text(_formatDuration(song.duration)),
                               onTap: () {
-                                final url = provider.getStreamUrl(song.id);
-                                _playSong(context, song, url);
+                                _playSong(context, song);
                               },
                             );
                           },
@@ -495,20 +718,5 @@ class _LibraryPageState extends State<LibraryPage> {
     final minutes = duration.inMinutes;
     final remainingSeconds = duration.inSeconds - minutes * 60;
     return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
-  }
-
-  void _playSong(BuildContext context, Song song, String url) {
-    final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
-    playerProvider.playSong(song, url);
-    
-    Navigator.push(
-      context,
-      BottomToTopPageRoute(
-        child: PlayerPage(
-          song: song,
-          streamUrl: url,
-        ),
-      ),
-    );
   }
 } 
