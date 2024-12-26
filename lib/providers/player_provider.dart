@@ -35,7 +35,7 @@ class PlayerProvider extends ChangeNotifier {
   bool _isDraggingProgress = false;
   
   PlayerProvider() {
-    // 设置播放状态监听回调
+    // 设置播放状态监听��调
     _playerService.onPositionChanged = (position) {
       updatePosition(position);
     };
@@ -215,7 +215,7 @@ class PlayerProvider extends ChangeNotifier {
   }
 
   // 播放全部
-  Future<void> playAll(List<Song> songs, {bool shuffle = false}) async {
+  Future<void> playAll(List<Song> songs, {bool shuffle = false, int? startIndex}) async {
     if (songs.isEmpty) return;
     
     _playlist.clear();
@@ -228,7 +228,7 @@ class PlayerProvider extends ChangeNotifier {
       _playMode = PlayMode.sequence;
     }
     
-    await playSong(_playlist.first);
+    await playSong(_playlist[startIndex ?? 0]);
   }
 
   // 进度条拖动相关

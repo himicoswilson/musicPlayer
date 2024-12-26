@@ -31,6 +31,9 @@ class Song {
     required this.bitRate,
   });
 
+  String get artist => artistName;
+  String get coverArtUrl => coverArtId != null ? '/rest/getCoverArt.view?id=$coverArtId' : '';
+
   factory Song.fromJson(Map<String, dynamic> json) {
     return Song(
       id: json['id'],
@@ -48,5 +51,24 @@ class Song {
       suffix: json['suffix'] ?? '',
       bitRate: json['bitRate'] ?? 0,
     );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'title': title,
+      'albumId': albumId,
+      'album': albumName,
+      'artistId': artistId,
+      'artist': artistName,
+      'coverArt': coverArtId,
+      'duration': duration,
+      'track': track,
+      'year': year,
+      'genre': genre,
+      'size': size,
+      'suffix': suffix,
+      'bitRate': bitRate,
+    };
   }
 } 
