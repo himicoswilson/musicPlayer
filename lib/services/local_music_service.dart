@@ -228,15 +228,17 @@ class LocalMusicService implements MusicService {
   }
 
   Future<bool> requestStoragePermission() async {
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (Platform.isAndroid) {
       final status = await Permission.storage.request();
       return status.isGranted;
+    } else if (Platform.isIOS) {
+      return true;
     }
     return true;
   }
 
   Future<String?> pickMusicDirectory() async {
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (Platform.isAndroid) {
       final hasPermission = await requestStoragePermission();
       if (!hasPermission) {
         throw Exception('需要存储权限来选择音乐文件夹');
@@ -244,14 +246,30 @@ class LocalMusicService implements MusicService {
     }
 
     try {
-      String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
-        dialogTitle: '选择音乐文件夹',
-        initialDirectory: await getLocalMusicPath() ?? await getDefaultMusicDirectory(),
-      );
+      if (Platform.isIOS) {
+        // 在iOS上，我们使用应用的Documents目录
+        final directory = await getApplicationDocumentsDirectory();
+        final musicDir = Directory('${directory.path}/Music');
+        if (!await musicDir.exists()) {
+          await musicDir.create(recursive: true);
+        }
+        await setLocalMusicPath(musicDir.path);
+        return musicDir.path;
+      } else {
+        String? initialDirectory = await getLocalMusicPath() ?? await getDefaultMusicDirectory();
+        String? selectedDirectory = await FilePicker.platform.getDirectoryPath(
+          dialogTitle: '选择音乐文件夹',
+          initialDirectory: initialDirectory,
+        );
 
-      if (selectedDirectory != null) {
-        await setLocalMusicPath(selectedDirectory);
-        return selectedDirectory;
+        if (selectedDirectory != null) {
+          final dir = Directory(selectedDirectory);
+          if (!await dir.exists()) {
+            throw Exception('选择的目录不存在');
+          }
+          await setLocalMusicPath(selectedDirectory);
+          return selectedDirectory;
+        }
       }
       return null;
     } catch (e) {
@@ -266,21 +284,27 @@ class LocalMusicService implements MusicService {
     }
 
     List<LocalSong> musicFiles = [];
-    await for (var entity in dir.list(recursive: true)) {
-      if (entity is File) {
-        String path = entity.path.toLowerCase();
-        if (path.endsWith('.mp3') || 
-            path.endsWith('.m4a') || 
-            path.endsWith('.wav') || 
-            path.endsWith('.flac')) {
-          try {
-            final song = await LocalSong.fromFile(entity);
-            musicFiles.add(song);
-          } catch (e) {
-            print('Error processing file ${entity.path}: $e');
+    try {
+      await for (var entity in dir.list(recursive: true)) {
+        if (entity is File) {
+          String path = entity.path.toLowerCase();
+          if (path.endsWith('.mp3') || 
+              path.endsWith('.m4a') || 
+              path.endsWith('.wav') || 
+              path.endsWith('.flac')) {
+            try {
+              final song = await LocalSong.fromFile(entity);
+              musicFiles.add(song);
+            } catch (e) {
+              print('Error processing file ${entity.path}: $e');
+            }
           }
         }
       }
+    } catch (e) {
+      print('Error scanning directory: $e');
+      // 如果扫描失败，返回空列表而不是抛出异常
+      return [];
     }
 
     musicFiles.sort((a, b) {
@@ -298,21 +322,15 @@ class LocalMusicService implements MusicService {
       if (await directory.exists()) {
         return directory.path;
       }
-    } else if (Platform.isMacOS || Platform.isLinux) {
-      final home = Platform.environment['HOME'];
-      if (home != null) {
-        final musicDir = Directory('$home/Music');
-        if (await musicDir.exists()) {
-          return musicDir.path;
-        }
+      return (await getExternalStorageDirectory())?.path ?? '/storage/emulated/0/Music';
+    } else if (Platform.isIOS) {
+      final directory = await getApplicationDocumentsDirectory();
+      final musicDir = Directory('${directory.path}/Music');
+      if (!await musicDir.exists()) {
+        await musicDir.create(recursive: true);
       }
+      return musicDir.path;
     }
-    
-    final directory = await getApplicationDocumentsDirectory();
-    final musicDir = Directory('${directory.path}/Music');
-    if (!await musicDir.exists()) {
-      await musicDir.create(recursive: true);
-    }
-    return musicDir.path;
+    return (await getApplicationDocumentsDirectory()).path;
   }
 } 
