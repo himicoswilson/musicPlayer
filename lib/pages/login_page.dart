@@ -23,6 +23,20 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  Future<void> _login() async {
+    if (_formKey.currentState?.validate() ?? false) {
+      final success = await context.read<AuthProvider>().login(
+            _serverController.text,
+            _usernameController.text,
+            _passwordController.text,
+          );
+
+      if (success && mounted) {
+        Navigator.of(context).pushReplacementNamed('/home');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -40,8 +54,7 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _serverController,
                 decoration: const InputDecoration(
                   labelText: '服务器地址',
-                  // hintText: '例如: http://your-server:4533',
-                  hintText: 'http://localhost:4533/',
+                  hintText: '例如: http://your-server:4533',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -55,7 +68,6 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _usernameController,
                 decoration: const InputDecoration(
                   labelText: '用户名',
-                  hintText: 'admin',
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -69,7 +81,6 @@ class _LoginPageState extends State<LoginPage> {
                 controller: _passwordController,
                 decoration: const InputDecoration(
                   labelText: '密码',
-                  hintText: 'password',
                 ),
                 obscureText: true,
                 validator: (value) {
@@ -82,41 +93,22 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 24),
               Consumer<AuthProvider>(
                 builder: (context, auth, child) {
+                  if (auth.isLoading) {
+                    return const CircularProgressIndicator();
+                  }
                   return Column(
                     children: [
                       if (auth.error != null)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 16.0),
+                          padding: const EdgeInsets.only(bottom: 16),
                           child: Text(
                             auth.error!,
                             style: const TextStyle(color: Colors.red),
                           ),
                         ),
                       ElevatedButton(
-                        onPressed: auth.isLoading
-                            ? null
-                            : () async {
-                                if (_formKey.currentState!.validate()) {
-                                  final success = await auth.login(
-                                    _serverController.text,
-                                    _usernameController.text,
-                                    _passwordController.text,
-                                  );
-                                  if (success && mounted) {
-                                    Navigator.of(context)
-                                        .pushReplacementNamed('/library');
-                                  }
-                                }
-                              },
-                        child: auth.isLoading
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text('登录'),
+                        onPressed: _login,
+                        child: const Text('登录'),
                       ),
                     ],
                   );
