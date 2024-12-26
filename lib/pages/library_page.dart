@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/library_provider.dart';
 import '../providers/player_provider.dart';
+import '../providers/settings_provider.dart';
 import '../models/artist.dart';
 import '../models/album.dart';
 import '../models/song.dart';
@@ -38,9 +39,9 @@ class _LibraryPageState extends State<LibraryPage> {
           title: const Text('音乐库'),
           bottom: const TabBar(
             tabs: [
-              Tab(text: '艺术家'),
-              Tab(text: '专辑'),
               Tab(text: '歌曲'),
+              Tab(text: '专辑'),
+              Tab(text: '艺术家'),
             ],
           ),
         ),
@@ -49,9 +50,9 @@ class _LibraryPageState extends State<LibraryPage> {
             Expanded(
               child: TabBarView(
                 children: [
-                  _buildArtistsTab(),
-                  _buildAlbumsTab(),
                   _buildSongsTab(context),
+                  _buildAlbumsTab(),
+                  _buildArtistsTab(),
                 ],
               ),
             ),
@@ -166,6 +167,8 @@ class _LibraryPageState extends State<LibraryPage> {
           );
         }
 
+        final settings = Provider.of<SettingsProvider>(context);
+
         return Column(
           children: [
             // 操作栏
@@ -201,86 +204,92 @@ class _LibraryPageState extends State<LibraryPage> {
               ),
             // 歌曲列表
             Expanded(
-              child: ListView.builder(
+              child: ListView.separated(
                 itemCount: provider.songs.length,
+                separatorBuilder: (context, index) => settings.showListDividers
+                    ? const Divider(height: 1)
+                    : const SizedBox.shrink(),
                 itemBuilder: (context, index) {
                   final song = provider.songs[index];
                   final isPlaying = Provider.of<PlayerProvider>(context).currentSong?.id == song.id;
                   
-                  return ListTile(
-                    leading: song.coverArtId != null
-                        ? Image.network(
-                            Provider.of<NavidromeService>(context, listen: false)
-                                .getCoverArtUrl(song.coverArtId!),
-                            width: 40,
-                            height: 40,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return Container(
-                                width: 40,
-                                height: 40,
-                                color: Colors.grey[200],
-                                child: const Icon(Icons.album, size: 24),
-                              );
-                            },
-                          )
-                        : Container(
-                            width: 40,
-                            height: 40,
-                            color: Colors.grey[200],
-                            child: const Icon(Icons.album, size: 24),
-                          ),
-                    title: Text(
-                      song.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: isPlaying ? Theme.of(context).primaryColor : null,
-                        fontWeight: isPlaying ? FontWeight.bold : null,
+                  return Container(
+                    height: settings.listItemHeight,
+                    child: ListTile(
+                      leading: song.coverArtId != null
+                          ? Image.network(
+                              Provider.of<NavidromeService>(context, listen: false)
+                                  .getCoverArtUrl(song.coverArtId!),
+                              width: 40,
+                              height: 40,
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) {
+                                return Container(
+                                  width: 40,
+                                  height: 40,
+                                  color: Colors.grey[200],
+                                  child: const Icon(Icons.album, size: 24),
+                                );
+                              },
+                            )
+                          : Container(
+                              width: 40,
+                              height: 40,
+                              color: Colors.grey[200],
+                              child: const Icon(Icons.album, size: 24),
+                            ),
+                      title: Text(
+                        song.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isPlaying ? Theme.of(context).primaryColor : null,
+                          fontWeight: isPlaying ? FontWeight.bold : null,
+                        ),
                       ),
+                      subtitle: Text(
+                        song.artistName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: isPlaying
+                          ? Icon(
+                              Icons.volume_up,
+                              color: Theme.of(context).primaryColor,
+                            )
+                          : IconButton(
+                              icon: const Icon(Icons.more_vert),
+                              onPressed: () {
+                                showModalBottomSheet(
+                                  context: context,
+                                  builder: (context) => Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      ListTile(
+                                        leading: const Icon(Icons.playlist_add),
+                                        title: const Text('添加到播放列表'),
+                                        onTap: () {
+                                          Provider.of<PlayerProvider>(context, listen: false)
+                                              .addSongsToPlaylist([song]);
+                                          Navigator.pop(context);
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('已添加到播放列表'),
+                                              duration: Duration(seconds: 1),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                      onTap: () {
+                        final provider = Provider.of<PlayerProvider>(context, listen: false);
+                        provider.playSong(song, provider.getStreamUrl(song));
+                      },
                     ),
-                    subtitle: Text(
-                      song.artistName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    trailing: isPlaying
-                        ? Icon(
-                            Icons.volume_up,
-                            color: Theme.of(context).primaryColor,
-                          )
-                        : IconButton(
-                            icon: const Icon(Icons.more_vert),
-                            onPressed: () {
-                              showModalBottomSheet(
-                                context: context,
-                                builder: (context) => Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    ListTile(
-                                      leading: const Icon(Icons.playlist_add),
-                                      title: const Text('添加到播放列表'),
-                                      onTap: () {
-                                        Provider.of<PlayerProvider>(context, listen: false)
-                                            .addSongsToPlaylist([song]);
-                                        Navigator.pop(context);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('已添加到播放列表'),
-                                            duration: Duration(seconds: 1),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
-                          ),
-                    onTap: () {
-                      final provider = Provider.of<PlayerProvider>(context, listen: false);
-                      provider.playSong(song, provider.getStreamUrl(song));
-                    },
                   );
                 },
               ),
@@ -494,8 +503,8 @@ class _LibraryPageState extends State<LibraryPage> {
     
     Navigator.push(
       context,
-      MaterialPageRoute(
-        builder: (context) => PlayerPage(
+      BottomToTopPageRoute(
+        child: PlayerPage(
           song: song,
           streamUrl: url,
         ),

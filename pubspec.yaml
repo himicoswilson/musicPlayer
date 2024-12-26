@@ -39,7 +39,7 @@ dependencies:
   # 状态管理
   provider: ^6.1.1
   # 本地存储
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.3.4
   # 音频播放
   just_audio: ^0.9.42
   just_audio_background: ^0.0.1-beta.11
@@ -50,6 +50,7 @@ dependencies:
   # 加密
   crypto: ^3.0.3
   audio_service: ^0.18.16
+  flutter_colorpicker: ^1.1.0
 
 dev_dependencies:
   flutter_test:
