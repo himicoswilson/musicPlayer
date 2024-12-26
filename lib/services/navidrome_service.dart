@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../models/artist.dart';
 import '../models/album.dart';
 import '../models/song.dart';
+import '../models/playlist.dart';
 import 'music_service.dart';
 
 class NavidromeService implements MusicService {
@@ -112,7 +113,7 @@ class NavidromeService implements MusicService {
 
       _username = username;
       
-      // 直接使用��码的 MD5 作为 token
+      // 直接使用密码的 MD5 作为 token
       _token = md5.convert(utf8.encode(password)).toString();
       _salt = '';
       
@@ -152,7 +153,7 @@ class NavidromeService implements MusicService {
     } catch (e) {
       if (e is DioException) {
         if (e.type == DioExceptionType.connectionTimeout) {
-          print('登录失败: 连接超���');
+          print('登录失败: 连接超时');
         } else if (e.type == DioExceptionType.connectionError) {
           print('登录失败: 连接错误 - ${e.message}');
         } else {
@@ -370,6 +371,200 @@ class NavidromeService implements MusicService {
     } catch (e) {
       print('搜索失败: $e');
       return {};
+    }
+  }
+
+  // 获取所有歌单
+  Future<List<Playlist>> getPlaylists() async {
+    try {
+      final response = await _dio.get('$_serverUrl/rest/getPlaylists.view');
+      
+      if (response.data['subsonic-response']['status'] == 'ok') {
+        final playlists = response.data['subsonic-response']['playlists']['playlist'] as List;
+        return playlists.map((p) => Playlist.fromJson(p)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('获取歌单错误: $e');
+      return [];
+    }
+  }
+
+  // 获取歌单详情
+  Future<Playlist?> getPlaylist(String playlistId) async {
+    try {
+      final response = await _dio.get(
+        '$_serverUrl/rest/getPlaylist.view',
+        queryParameters: {'id': playlistId},
+      );
+      
+      if (response.data['subsonic-response']['status'] == 'ok') {
+        return Playlist.fromJson(response.data['subsonic-response']['playlist']);
+      }
+      return null;
+    } catch (e) {
+      print('获取歌单详情错误: $e');
+      return null;
+    }
+  }
+
+  // 创建歌单
+  Future<bool> createPlaylist(String name, {String? comment}) async {
+    try {
+      final response = await _dio.get(
+        '$_serverUrl/rest/createPlaylist.view',
+        queryParameters: {
+          'name': name,
+          if (comment != null) 'comment': comment,
+        },
+      );
+      
+      return response.data['subsonic-response']['status'] == 'ok';
+    } catch (e) {
+      print('创建歌单错误: $e');
+      return false;
+    }
+  }
+
+  // 添加歌曲到歌单
+  Future<bool> addToPlaylist(String playlistId, String songId) async {
+    try {
+      final response = await _dio.get(
+        '$_serverUrl/rest/updatePlaylist.view',
+        queryParameters: {
+          'playlistId': playlistId,
+          'songIdToAdd': songId,
+        },
+      );
+      
+      return response.data['subsonic-response']['status'] == 'ok';
+    } catch (e) {
+      print('添加歌曲到歌单失败: $e');
+      return false;
+    }
+  }
+
+  // 从歌单中移除歌曲
+  Future<bool> removeFromPlaylist(String playlistId, int songIndex) async {
+    try {
+      final response = await _dio.get(
+        '$_serverUrl/rest/updatePlaylist.view',
+        queryParameters: {
+          'playlistId': playlistId,
+          'songIndexToRemove': songIndex,
+        },
+      );
+      
+      return response.data['subsonic-response']['status'] == 'ok';
+    } catch (e) {
+      print('从歌单中移除歌曲失败: $e');
+      return false;
+    }
+  }
+
+  // 更新歌单信息
+  Future<bool> updatePlaylist(String playlistId, {
+    String? name,
+    String? comment,
+  }) async {
+    try {
+      final params = {
+        'playlistId': playlistId,
+        if (name != null) 'name': name,
+        if (comment != null) 'comment': comment,
+      };
+
+      final response = await _dio.get(
+        '$_serverUrl/rest/updatePlaylist.view',
+        queryParameters: params,
+      );
+      
+      return response.data['subsonic-response']['status'] == 'ok';
+    } catch (e) {
+      print('更新歌单信息失败: $e');
+      return false;
+    }
+  }
+
+  // 删除歌单
+  Future<bool> deletePlaylist(String playlistId) async {
+    try {
+      final response = await _dio.get(
+        '$_serverUrl/rest/deletePlaylist.view',
+        queryParameters: {'id': playlistId},
+      );
+      
+      return response.data['subsonic-response']['status'] == 'ok';
+    } catch (e) {
+      print('删除歌单错误: $e');
+      return false;
+    }
+  }
+
+  // 获取收藏的歌曲
+  Future<List<Song>> getStarred() async {
+    try {
+      final response = await _dio.get(
+        '$_serverUrl/rest/getStarred.view',
+      );
+
+      if (response.data['subsonic-response']['status'] == 'ok') {
+        final starred = response.data['subsonic-response']['starred'];
+        if (starred == null || !starred.containsKey('song')) {
+          return [];
+        }
+        
+        final songs = starred['song'];
+        if (songs is! List) {
+          return [];
+        }
+
+        return songs.map<Song>((song) => Song.fromJson(song)).toList();
+      }
+      
+      print('获取收藏歌曲失败: 服务器返回非 OK 状态');
+      return [];
+    } catch (e) {
+      print('获取收藏歌曲错误: $e');
+      return [];
+    }
+  }
+
+  // 收藏歌曲
+  Future<bool> star({String? songId, String? albumId, String? artistId}) async {
+    try {
+      final response = await _dio.get(
+        '$_serverUrl/rest/star.view',
+        queryParameters: {
+          if (songId != null) 'id': songId,
+          if (albumId != null) 'albumId': albumId,
+          if (artistId != null) 'artistId': artistId,
+        },
+      );
+
+      return response.data['subsonic-response']['status'] == 'ok';
+    } catch (e) {
+      print('收藏失败: $e');
+      return false;
+    }
+  }
+
+  // 取消收藏
+  Future<bool> unstar({String? songId, String? albumId, String? artistId}) async {
+    try {
+      final response = await _dio.get(
+        '$_serverUrl/rest/unstar.view',
+        queryParameters: {
+          if (songId != null) 'id': songId,
+          if (albumId != null) 'albumId': albumId,
+          if (artistId != null) 'artistId': artistId,
+        },
+      );
+
+      return response.data['subsonic-response']['status'] == 'ok';
+    } catch (e) {
+      print('取消收藏失败: $e');
+      return false;
     }
   }
 

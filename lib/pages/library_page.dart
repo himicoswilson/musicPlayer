@@ -5,6 +5,7 @@ import '../providers/local_library_provider.dart';
 import '../providers/player_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/playlist_provider.dart';
 import '../models/artist.dart';
 import '../models/album.dart';
 import '../models/song.dart';
@@ -267,12 +268,57 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: isPlaying
-                          ? Icon(
-                              Icons.volume_up,
-                              color: Theme.of(context).primaryColor,
-                            )
-                          : null,
+                      trailing: IconButton(
+                        icon: const Icon(Icons.more_vert),
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            builder: (context) => Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ListTile(
+                                  leading: const Icon(Icons.playlist_add),
+                                  title: const Text('添加到播放列表'),
+                                  onTap: () {
+                                    Provider.of<PlayerProvider>(context, listen: false)
+                                        .addSongsToPlaylist([song]);
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('已添加到播放列表'),
+                                        duration: Duration(seconds: 1),
+                                      ),
+                                    );
+                                  },
+                                ),
+                                Consumer<PlaylistProvider>(
+                                  builder: (context, provider, child) {
+                                    final isStarred = provider.isSongStarred(song.id);
+                                    return ListTile(
+                                      leading: Icon(
+                                        isStarred ? Icons.favorite : Icons.favorite_border
+                                      ),
+                                      title: Text(isStarred ? '取消收藏' : '收藏'),
+                                      onTap: () async {
+                                        Navigator.pop(context);
+                                        await provider.toggleStarSong(song.id);
+                                      },
+                                    );
+                                  },
+                                ),
+                                ListTile(
+                                  leading: const Icon(Icons.playlist_add),
+                                  title: const Text('添加到歌单'),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    _showAddToPlaylistDialog(context, song);
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
                       onTap: () {
                         provider.playSong(song);
                       },
@@ -476,39 +522,57 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: isPlaying
-                          ? Icon(
-                              Icons.volume_up,
-                              color: Theme.of(context).primaryColor,
-                            )
-                          : IconButton(
-                              icon: const Icon(Icons.more_vert),
-                              onPressed: () {
-                                showModalBottomSheet(
-                                  context: context,
-                                  builder: (context) => Column(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      ListTile(
-                                        leading: const Icon(Icons.playlist_add),
-                                        title: const Text('添加到播放列表'),
-                                        onTap: () {
-                                          Provider.of<PlayerProvider>(context, listen: false)
-                                              .addSongsToPlaylist([song]);
-                                          Navigator.pop(context);
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('已添加到播放列表'),
-                                              duration: Duration(seconds: 1),
-                                            ),
-                                          );
-                                        },
+                      trailing: IconButton(
+                        icon: const Icon(Icons.more_vert),
+                        onPressed: () {
+                          showModalBottomSheet(
+                            context: context,
+                            builder: (context) => Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                ListTile(
+                                  leading: const Icon(Icons.playlist_add),
+                                  title: const Text('添加到播放列表'),
+                                  onTap: () {
+                                    Provider.of<PlayerProvider>(context, listen: false)
+                                        .addSongsToPlaylist([song]);
+                                    Navigator.pop(context);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('已添加到播放列表'),
+                                        duration: Duration(seconds: 1),
                                       ),
-                                    ],
-                                  ),
-                                );
-                              },
+                                    );
+                                  },
+                                ),
+                                Consumer<PlaylistProvider>(
+                                  builder: (context, provider, child) {
+                                    final isStarred = provider.isSongStarred(song.id);
+                                    return ListTile(
+                                      leading: Icon(
+                                        isStarred ? Icons.favorite : Icons.favorite_border
+                                      ),
+                                      title: Text(isStarred ? '取消收藏' : '收藏'),
+                                      onTap: () async {
+                                        Navigator.pop(context);
+                                        await provider.toggleStarSong(song.id);
+                                      },
+                                    );
+                                  },
+                                ),
+                                ListTile(
+                                  leading: const Icon(Icons.playlist_add),
+                                  title: const Text('添加到歌单'),
+                                  onTap: () {
+                                    Navigator.pop(context);
+                                    _showAddToPlaylistDialog(context, song);
+                                  },
+                                ),
+                              ],
                             ),
+                          );
+                        },
+                      ),
                       onTap: () {
                         final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
                         playerProvider.playSong(song);
@@ -694,7 +758,24 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
                               leading: Text('${song.track}'),
                               title: Text(song.title),
                               subtitle: Text(song.artistName),
-                              trailing: Text(_formatDuration(song.duration)),
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Consumer<PlaylistProvider>(
+                                    builder: (context, provider, child) {
+                                      final isStarred = provider.isSongStarred(song.id);
+                                      return IconButton(
+                                        icon: Icon(
+                                          isStarred ? Icons.favorite : Icons.favorite_border
+                                        ),
+                                        onPressed: () => provider.toggleStarSong(song.id),
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(_formatDuration(song.duration)),
+                                ],
+                              ),
                               onTap: () {
                                 _playSong(context, song);
                               },
@@ -718,5 +799,166 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
     final minutes = duration.inMinutes;
     final remainingSeconds = duration.inSeconds - minutes * 60;
     return '$minutes:${remainingSeconds.toString().padLeft(2, '0')}';
+  }
+
+  void _showAddToPlaylistDialog(BuildContext context, Song song) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Consumer<PlaylistProvider>(
+        builder: (context, provider, child) {
+          if (provider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (provider.playlists.isEmpty) {
+            return Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text('还没有歌单'),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.pop(context);
+                      _showCreatePlaylistDialog(context, song);
+                    },
+                    child: const Text('创建歌单'),
+                  ),
+                ],
+              ),
+            );
+          }
+
+          return ListView.builder(
+            itemCount: provider.playlists.length + 1,
+            itemBuilder: (context, index) {
+              if (index == 0) {
+                return ListTile(
+                  leading: const Icon(Icons.add),
+                  title: const Text('创建新歌单'),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _showCreatePlaylistDialog(context, song);
+                  },
+                );
+              }
+
+              final playlist = provider.playlists[index - 1];
+              return ListTile(
+                leading: const Icon(Icons.playlist_play),
+                title: Text(playlist.name),
+                subtitle: Text('${playlist.songCount} 首歌曲'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final currentPlaylist = await NavidromeService().getPlaylist(playlist.id);
+                  if (currentPlaylist != null) {
+                    if (!currentPlaylist.songs.any((s) => s.id == song.id)) {
+                      final success = await provider.addToPlaylist(playlist.id, song.id);
+                      if (success && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('已添加到歌单')),
+                        );
+                      } else if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('添加失败')),
+                        );
+                      }
+                    } else if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('歌曲已在歌单中')),
+                      );
+                    }
+                  }
+                },
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  void _showCreatePlaylistDialog(BuildContext context, Song song) {
+    final nameController = TextEditingController();
+    final commentController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('创建歌单'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: nameController,
+              decoration: const InputDecoration(
+                labelText: '歌单名称',
+                hintText: '请输入歌单名称',
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: commentController,
+              decoration: const InputDecoration(
+                labelText: '描述',
+                hintText: '请输入歌单描述（可选）',
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () async {
+              if (nameController.text.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('请输入歌单名称')),
+                );
+                return;
+              }
+
+              final provider = context.read<PlaylistProvider>();
+              final success = await provider.createPlaylist(
+                nameController.text,
+                comment: commentController.text.isEmpty
+                    ? null
+                    : commentController.text,
+              );
+
+              if (success && context.mounted) {
+                final playlists = provider.playlists;
+                if (playlists.isNotEmpty) {
+                  final newPlaylist = playlists.last;
+                  final addSuccess = await provider.addToPlaylist(
+                    newPlaylist.id,
+                    song.id,
+                  );
+                  if (addSuccess && context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('已创建歌单并添加歌曲')),
+                    );
+                  } else if (context.mounted) {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('创建歌单成功，但添加歌曲失败')),
+                    );
+                  }
+                }
+              } else if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('创建歌单失败')),
+                );
+              }
+            },
+            child: const Text('创建'),
+          ),
+        ],
+      ),
+    );
   }
 } 

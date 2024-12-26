@@ -5,6 +5,7 @@ import 'providers/library_provider.dart';
 import 'providers/local_library_provider.dart';
 import 'providers/player_provider.dart';
 import 'providers/settings_provider.dart';
+import 'providers/playlist_provider.dart';
 import 'services/navidrome_service.dart';
 import 'pages/login_page.dart';
 import 'pages/home_page.dart';
@@ -38,6 +39,7 @@ class MyApp extends StatelessWidget {
           ),
         ),
         ChangeNotifierProvider.value(value: settingsProvider),
+        ChangeNotifierProvider(create: (_) => PlaylistProvider()),
       ],
       child: Consumer<SettingsProvider>(
         builder: (context, settings, _) {
