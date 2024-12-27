@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:device_preview/device_preview.dart';
 import 'providers/auth_provider.dart';
 import 'providers/library_provider.dart';
 import 'providers/local_library_provider.dart';
@@ -14,7 +15,15 @@ void main() {
   // 确保 Flutter 绑定初始化
   WidgetsFlutterBinding.ensureInitialized();
   
-  runApp(const MyApp());
+  runApp(
+    DevicePreview(
+      enabled: true,
+      tools: const [
+        ...DevicePreview.defaultTools,
+      ],
+      builder: (context) => const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -44,6 +53,9 @@ class MyApp extends StatelessWidget {
       child: Consumer<SettingsProvider>(
         builder: (context, settings, _) {
           return MaterialApp(
+            useInheritedMediaQuery: true,
+            locale: DevicePreview.locale(context),
+            builder: DevicePreview.appBuilder,
             title: '音乐播放器',
             theme: ThemeData(
               colorScheme: ColorScheme.fromSeed(

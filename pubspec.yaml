@@ -53,6 +53,7 @@ dependencies:
   flutter_colorpicker: ^1.1.0
   permission_handler: ^11.0.1
   file_picker: ^8.1.6
+  device_preview: ^1.2.0
 
 dev_dependencies:
   flutter_test:

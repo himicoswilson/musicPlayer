@@ -35,9 +35,17 @@ class PlayerService {
           builder: () => MyAudioHandler(),
           config: const AudioServiceConfig(
             androidNotificationChannelId: 'com.myapp.audio',
-            androidNotificationChannelName: 'Audio Service',
+            androidNotificationChannelName: '音乐播放器',
+            androidNotificationChannelDescription: '音乐播放器通知',
+            androidNotificationIcon: 'mipmap/ic_launcher',
+            androidShowNotificationBadge: true,
             androidNotificationOngoing: true,
             androidStopForegroundOnPause: true,
+            artDownscaleWidth: 300,
+            artDownscaleHeight: 300,
+            fastForwardInterval: Duration(seconds: 10),
+            rewindInterval: Duration(seconds: 10),
+            preloadArtwork: true,
           ),
         );
       }
@@ -165,12 +173,13 @@ class PlayerService {
 class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   final _player = AudioPlayer();
   final List<MediaItem> _mediaItems = [];
+  int? _currentIndex;
 
   MyAudioHandler() {
     _player.playbackEventStream.listen(_broadcastState);
     _player.processingStateStream.listen((state) {
       if (state == ProcessingState.completed) {
-        stop();
+        _handlePlaybackCompletion();
       }
     });
   }
@@ -188,11 +197,40 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       }
       _mediaItems.clear();  // 清除之前的媒体项
       _mediaItems.add(mediaItem);
+      _currentIndex = 0;
       mediaItem = mediaItem.copyWith(duration: _player.duration);
+      mediaItem = await _updateMediaItem(mediaItem);
       await _player.play();
     } catch (e) {
       print('Error playing media item: $e');
     }
+  }
+
+  Future<MediaItem> _updateMediaItem(MediaItem mediaItem) async {
+    mediaItem = mediaItem.copyWith(
+      id: mediaItem.id,
+      album: mediaItem.album,
+      title: mediaItem.title,
+      artist: mediaItem.artist,
+      duration: mediaItem.duration,
+      artUri: mediaItem.artUri,
+      playable: true,
+      displayTitle: mediaItem.title,
+      displaySubtitle: mediaItem.artist,
+      displayDescription: mediaItem.album,
+    );
+    mediaItem = await _addRatingAndLyrics(mediaItem);
+    return mediaItem;
+  }
+
+  Future<MediaItem> _addRatingAndLyrics(MediaItem mediaItem) async {
+    // TODO: 从服务器获取歌曲评分和歌词信息
+    return mediaItem.copyWith(
+      rating: const Rating.newHeartRating(false),
+      extras: {
+        'lyrics': '', // 这里可以添加歌词
+      },
+    );
   }
 
   @override
@@ -207,18 +245,79 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
   @override
   Future<void> seek(Duration position) => _player.seek(position);
 
+  @override
+  Future<void> skipToPrevious() async {
+    if (_currentIndex == null || _mediaItems.isEmpty) return;
+    if (_currentIndex! > 0) {
+      _currentIndex = _currentIndex! - 1;
+      await playMediaItem(_mediaItems[_currentIndex!]);
+    }
+  }
+
+  @override
+  Future<void> skipToNext() async {
+    if (_currentIndex == null || _mediaItems.isEmpty) return;
+    if (_currentIndex! < _mediaItems.length - 1) {
+      _currentIndex = _currentIndex! + 1;
+      await playMediaItem(_mediaItems[_currentIndex!]);
+    }
+  }
+
+  @override
+  Future<void> setSpeed(double speed) => _player.setSpeed(speed);
+
+  @override
+  Future<void> setRepeatMode(AudioServiceRepeatMode repeatMode) async {
+    switch (repeatMode) {
+      case AudioServiceRepeatMode.none:
+        await _player.setLoopMode(LoopMode.off);
+        break;
+      case AudioServiceRepeatMode.one:
+        await _player.setLoopMode(LoopMode.one);
+        break;
+      case AudioServiceRepeatMode.all:
+      case AudioServiceRepeatMode.group:
+        await _player.setLoopMode(LoopMode.all);
+        break;
+    }
+  }
+
+  @override
+  Future<void> setShuffleMode(AudioServiceShuffleMode shuffleMode) async {
+    if (shuffleMode == AudioServiceShuffleMode.none) {
+      await _player.setShuffleModeEnabled(false);
+    } else {
+      await _player.setShuffleModeEnabled(true);
+    }
+  }
+
+  Future<void> _handlePlaybackCompletion() async {
+    if (_currentIndex != null && _currentIndex! < _mediaItems.length - 1) {
+      await skipToNext();
+    } else {
+      await stop();
+    }
+  }
+
   void _broadcastState(PlaybackEvent event) {
     final playing = _player.playing;
+    final repeatMode = _player.loopMode;
+    final shuffleMode = _player.shuffleModeEnabled;
+
     playbackState.add(playbackState.value.copyWith(
       controls: [
         MediaControl.skipToPrevious,
         if (playing) MediaControl.pause else MediaControl.play,
         MediaControl.skipToNext,
+        MediaControl.stop,
       ],
       systemActions: const {
         MediaAction.seek,
         MediaAction.seekForward,
         MediaAction.seekBackward,
+        MediaAction.setRepeatMode,
+        MediaAction.setShuffleMode,
+        MediaAction.setSpeed,
       },
       androidCompactActionIndices: const [0, 1, 2],
       processingState: const {
@@ -233,6 +332,19 @@ class MyAudioHandler extends BaseAudioHandler with QueueHandler, SeekHandler {
       bufferedPosition: _player.bufferedPosition,
       speed: _player.speed,
       queueIndex: event.currentIndex,
+      repeatMode: {
+        LoopMode.off: AudioServiceRepeatMode.none,
+        LoopMode.one: AudioServiceRepeatMode.one,
+        LoopMode.all: AudioServiceRepeatMode.all,
+      }[repeatMode]!,
+      shuffleMode: shuffleMode
+          ? AudioServiceShuffleMode.all
+          : AudioServiceShuffleMode.none,
     ));
+
+    // 更新媒体会话
+    if (_currentIndex != null && _currentIndex! < _mediaItems.length) {
+      mediaItem.add(_mediaItems[_currentIndex!]);
+    }
   }
 } 
