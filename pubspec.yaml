@@ -35,7 +35,7 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.2
   # HTTP 客户端
-  dio: ^5.4.0
+  dio: ^5.7.0
   # 状态管理
   provider: ^6.1.1
   # 本地存储
@@ -44,7 +44,7 @@ dependencies:
   just_audio: ^0.9.42
   just_audio_background: ^0.0.1-beta.11
   # 路径管理
-  path_provider: ^2.1.1
+  path_provider: ^2.1.5
   # 加密存储
   flutter_secure_storage: ^9.0.0
   # 加密
@@ -54,6 +54,7 @@ dependencies:
   permission_handler: ^11.0.1
   file_picker: ^8.1.6
   device_preview: ^1.2.0
+  flutter_media_metadata: ^1.0.0+1
 
 dev_dependencies:
   flutter_test:

@@ -22,7 +22,7 @@ abstract class MusicService {
   Future<Map<String, dynamic>> search(String query);
 
   // 获取歌曲流媒体URL
-  String getStreamUrl(String songId);
+  Future<String> getStreamUrl(String songId);
 
   // 获取封面图片URL
   String getCoverArtUrl(String? coverArtId);

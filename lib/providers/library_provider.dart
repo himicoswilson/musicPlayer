@@ -98,7 +98,7 @@ class LibraryProvider with ChangeNotifier {
       final songs = await _navidromeService.getAlbumSongs(albumId);
       _albumSongs[albumId] = songs;
     } catch (e) {
-      _error = '加载歌曲列表失败: $e';
+      _error = '加载歌���列表失败: $e';
     }
 
     _isLoading = false;
@@ -123,7 +123,7 @@ class LibraryProvider with ChangeNotifier {
     }
   }
 
-  String getStreamUrl(String songId) {
+  Future<String> getStreamUrl(String songId) {
     return _navidromeService.getStreamUrl(songId);
   }
 

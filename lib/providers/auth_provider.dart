@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../services/navidrome_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'cache_provider.dart';
 
 class AuthProvider with ChangeNotifier {
   final NavidromeService _navidromeService = NavidromeService();
@@ -9,13 +10,21 @@ class AuthProvider with ChangeNotifier {
   String? _error;
   bool _isLocalMode = false;
   bool _hasNavidromeConfig = false;
+  bool _isOfflineMode = false;
+  String? _serverUrl;
+  String? _username;
+  String? _password;
+  CacheProvider? _cacheProvider;
 
-  bool get isLoggedIn => _isNavidromeLoggedIn || _isLocalMode;
+  bool get isLoggedIn => _isNavidromeLoggedIn || _isLocalMode || _isOfflineMode;
   bool get isNavidromeLoggedIn => _isNavidromeLoggedIn;
   bool get isLoading => _isLoading;
   String? get error => _error;
   bool get isLocalMode => _isLocalMode;
   bool get hasNavidromeConfig => _hasNavidromeConfig;
+  bool get isOfflineMode => _isOfflineMode;
+  String? get serverUrl => _serverUrl;
+  String? get username => _username;
 
   Future<void> init() async {
     _isLoading = true;
@@ -33,15 +42,39 @@ class AuthProvider with ChangeNotifier {
       _hasNavidromeConfig = serverUrl != null && username != null && token != null;
       
       if (_hasNavidromeConfig) {
-        final isConnected = await _navidromeService.ping();
-        _isNavidromeLoggedIn = isConnected;
+        try {
+          final isConnected = await _navidromeService.ping();
+          _isNavidromeLoggedIn = isConnected;
+        } catch (e) {
+          debugPrint('连接服务器失败: $e');
+          // 检查是否有缓存的歌曲
+          _cacheProvider = CacheProvider(_navidromeService);
+          await _cacheProvider!.ensureInitialized();
+          final hasCachedSongs = _cacheProvider!.getCachedSongs().isNotEmpty;
+          
+          if (hasCachedSongs) {
+            _isOfflineMode = true;
+            _error = null;
+          } else {
+            _error = e.toString();
+          }
+        }
       } else {
         _isNavidromeLoggedIn = false;
       }
-      _error = null;
     } catch (e) {
       _error = e.toString();
       _isNavidromeLoggedIn = false;
+      
+      // 检查是否有缓存的歌曲
+      _cacheProvider = CacheProvider(_navidromeService);
+      await _cacheProvider!.ensureInitialized();
+      final hasCachedSongs = _cacheProvider!.getCachedSongs().isNotEmpty;
+      
+      if (hasCachedSongs) {
+        _isOfflineMode = true;
+        _error = null;
+      }
     }
 
     _isLoading = false;
@@ -111,23 +144,85 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
+  Future<bool> tryAutoLogin() async {
+    final prefs = await SharedPreferences.getInstance();
+    _serverUrl = prefs.getString('serverUrl');
+    _username = prefs.getString('username');
+    final password = prefs.getString('password');
+    
+    if (_serverUrl != null && _username != null && password != null) {
+      try {
+        final success = await login(_serverUrl!, _username!, password);
+        if (success) {
+          return true;
+        }
+      } catch (e) {
+        debugPrint('自动登录失败: $e');
+        // 如果登录失败，检查是否有缓存的歌曲
+        _cacheProvider = CacheProvider(_navidromeService);
+        await _cacheProvider!.ensureInitialized();
+        final hasCachedSongs = _cacheProvider!.getCachedSongs().isNotEmpty;
+        
+        if (hasCachedSongs) {
+          _isOfflineMode = true;
+          notifyListeners();
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
   Future<bool> login(String serverUrl, String username, String password) async {
-    return configureNavidrome(serverUrl, username, password);
+    try {
+      final success = await _navidromeService.login(serverUrl, username, password);
+      
+      if (success) {
+        _isNavidromeLoggedIn = true;
+        _serverUrl = serverUrl;
+        _username = username;
+        
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('serverUrl', serverUrl);
+        await prefs.setString('username', username);
+        await prefs.setString('password', password);
+        
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      debugPrint('登录失败: $e');
+      // 检查是否有缓存的歌曲
+      _cacheProvider = CacheProvider(_navidromeService);
+      await _cacheProvider!.ensureInitialized();
+      final hasCachedSongs = _cacheProvider!.getCachedSongs().isNotEmpty;
+      
+      if (hasCachedSongs) {
+        _isOfflineMode = true;
+        notifyListeners();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  void setLocalMode(bool enabled) {
+    _isLocalMode = enabled;
+    notifyListeners();
   }
 
   Future<void> logout() async {
-    _isLoading = true;
+    _isNavidromeLoggedIn = false;
+    _isOfflineMode = false;
+    _serverUrl = null;
+    _username = null;
+    
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('serverUrl');
+    await prefs.remove('username');
+    await prefs.remove('password');
+    
     notifyListeners();
-
-    try {
-      await _navidromeService.logout();
-      _isNavidromeLoggedIn = false;
-      _hasNavidromeConfig = false;
-      _error = null;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
-    }
   }
 
   // 获取已保存的 Navidrome 配置

@@ -93,7 +93,7 @@ class PlayerService {
       throw StateError('未设置音乐服务');
     }
     try {
-      final url = _currentMusicService!.getStreamUrl(song.id);
+      final url = await _currentMusicService!.getStreamUrl(song.id);
       final coverArtUrl = _currentMusicService!.getCoverArtUrl(song.coverArtId);
       
       await _audioHandler?.playMediaItem(
@@ -104,6 +104,10 @@ class PlayerService {
           artist: song.artistName ?? '',
           duration: Duration(seconds: song.duration),
           artUri: coverArtUrl.isNotEmpty ? Uri.parse(coverArtUrl) : null,
+          extras: {
+            'songId': song.id,
+            'coverArtId': song.coverArtId,
+          },
         ),
       );
     } catch (e) {

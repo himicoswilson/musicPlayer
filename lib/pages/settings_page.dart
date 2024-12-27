@@ -7,6 +7,8 @@ import '../providers/local_library_provider.dart';
 import '../services/local_music_service.dart';
 import '../widgets/mini_player.dart';
 import '../pages/home_page.dart';
+import '../providers/cache_provider.dart';
+import '../pages/cache_management_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({Key? key}) : super(key: key);
@@ -48,6 +50,58 @@ class SettingsPage extends StatelessWidget {
                   );
                 },
               ),
+              const Divider(),
+              // 缓存管理
+              ListTile(
+                leading: const Icon(Icons.storage),
+                title: const Text('缓存管理'),
+                subtitle: Consumer<CacheProvider>(
+                  builder: (context, provider, child) {
+                    return ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 300),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          FutureBuilder<int>(
+                            future: provider.getMaxCacheSize(),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData) {
+                                final maxSpace = snapshot.data!;
+                                final usedSpace = provider.getCacheSize();
+                                return Text(
+                                  '已使用 ${_formatSize(usedSpace)} / ${_formatSize(maxSpace)}',
+                                  overflow: TextOverflow.ellipsis,
+                                );
+                              }
+                              return const Text('计算中...');
+                            },
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '缓存位置: ${provider.cachePath}',
+                            style: Theme.of(context).textTheme.bodySmall,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
+                trailing: SizedBox(
+                  width: 24,
+                  child: Icon(Icons.chevron_right),
+                ),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const CacheManagementPage(),
+                    ),
+                  );
+                },
+              ),
+              const Divider(),
             ],
           );
         },
@@ -573,4 +627,11 @@ class _ListStyleSettingsTab extends StatelessWidget {
       },
     );
   }
+}
+
+String _formatSize(int bytes) {
+  if (bytes < 1024) return '$bytes B';
+  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
 } 

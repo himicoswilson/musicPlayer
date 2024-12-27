@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:path/path.dart' as path;
+import 'package:flutter_media_metadata/flutter_media_metadata.dart';
 import 'song.dart';
 
 class LocalSong extends Song {
@@ -11,45 +12,53 @@ class LocalSong extends Song {
   LocalSong({
     required String id,
     required String title,
-    String? artist,
-    String? album,
-    String? albumArtist,
-    String? genre,
-    int? year,
-    int? track,
     required this.filePath,
-    Duration? duration,
-    String? coverPath,
+    String? albumName,
+    String? artistName,
+    String? coverArtId,
+    int duration = 0,
+    int track = 0,
+    int? year,
     this.coverData,
     this.lastModified,
   }) : super(
           id: id,
           title: title,
-          albumId: album ?? 'unknown',
-          albumName: album ?? '未知专辑',
-          artistId: artist ?? albumArtist ?? 'unknown',
-          artistName: artist ?? albumArtist ?? '未知艺术家',
-          coverArtId: coverPath,
-          duration: duration?.inSeconds ?? 0,
-          track: track ?? 0,
+          albumName: albumName,
+          artistName: artistName,
+          coverArtId: coverArtId,
+          duration: duration,
+          track: track,
           year: year,
-          genre: genre,
-          size: 0,  // 暂时不计算文件大小
-          suffix: path.extension(filePath).replaceAll('.', ''),
-          bitRate: 0,  // 暂时不计算比特率
         );
 
   static Future<LocalSong> fromFile(File file) async {
-    final filePath = file.path;
-    String title = path.basenameWithoutExtension(filePath);
-    final lastModified = await file.lastModified();
+    final stats = await file.stat();
     
-    // 暂时只使用文件名作为标题
-    return LocalSong(
-      id: filePath,
-      title: title,
-      filePath: filePath,
-      lastModified: lastModified,
-    );
+    try {
+      final metadata = await MetadataRetriever.fromFile(file);
+      
+      return LocalSong(
+        id: file.path,
+        title: metadata.trackName ?? path.basenameWithoutExtension(file.path),
+        filePath: file.path,
+        albumName: metadata.albumName,
+        artistName: metadata.trackArtistNames?.firstOrNull,
+        coverArtId: null, // 暂时不处理封面
+        duration: metadata.trackDuration ?? 0,
+        track: metadata.trackNumber ?? 0,
+        year: metadata.year,
+        lastModified: stats.modified,
+      );
+    } catch (e) {
+      print('读取音乐文件元数据失败: $e');
+      // 如果读取元数据失败，使用基本文件信息
+      return LocalSong(
+        id: file.path,
+        title: path.basenameWithoutExtension(file.path),
+        filePath: file.path,
+        lastModified: stats.modified,
+      );
+    }
   }
 } 
