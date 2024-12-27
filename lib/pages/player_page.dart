@@ -25,7 +25,6 @@ class PlayerPage extends StatefulWidget {
 class _PlayerPageState extends State<PlayerPage> {
   late Song _currentSong;
   late bool _showLyrics;
-
   @override
   void initState() {
     super.initState();
