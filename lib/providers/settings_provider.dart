@@ -37,6 +37,32 @@ class SettingsProvider extends ChangeNotifier {
   double _listItemHeight = 64;
   double get listItemHeight => _listItemHeight;
 
+  // 歌词设置
+  static const String _kLyricNormalColorKey = 'lyric_normal_color';
+  static const String _kLyricActiveColorKey = 'lyric_active_color';
+  static const String _kLyricNormalSizeKey = 'lyric_normal_size';
+  static const String _kLyricActiveSizeKey = 'lyric_active_size';
+  static const String _kDefaultShowLyricsKey = 'default_show_lyrics';
+
+  // 默认值
+  static const Color _defaultLyricNormalColor = Colors.grey;
+  static const Color _defaultLyricActiveColor = Colors.deepPurple;
+  static const double _defaultLyricNormalSize = 16.0;
+  static const double _defaultLyricActiveSize = 18.0;
+  static const bool _defaultShowLyrics = true;
+
+  Color _lyricNormalColor = _defaultLyricNormalColor;
+  Color _lyricActiveColor = _defaultLyricActiveColor;
+  double _lyricNormalSize = _defaultLyricNormalSize;
+  double _lyricActiveSize = _defaultLyricActiveSize;
+  bool _showLyrics = _defaultShowLyrics;
+
+  Color get lyricNormalColor => _lyricNormalColor;
+  Color get lyricActiveColor => _lyricActiveColor;
+  double get lyricNormalSize => _lyricNormalSize;
+  double get lyricActiveSize => _lyricActiveSize;
+  bool get defaultShowLyrics => _showLyrics;
+
   // 加载设置
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -61,6 +87,13 @@ class SettingsProvider extends ChangeNotifier {
     // 列表样式
     _showListDividers = prefs.getBool('showListDividers') ?? false;
     _listItemHeight = prefs.getDouble('listItemHeight') ?? 64;
+
+    // 加载歌词设置
+    _lyricNormalColor = Color(prefs.getInt(_kLyricNormalColorKey) ?? _defaultLyricNormalColor.value);
+    _lyricActiveColor = Color(prefs.getInt(_kLyricActiveColorKey) ?? _defaultLyricActiveColor.value);
+    _lyricNormalSize = prefs.getDouble(_kLyricNormalSizeKey) ?? _defaultLyricNormalSize;
+    _lyricActiveSize = prefs.getDouble(_kLyricActiveSizeKey) ?? _defaultLyricActiveSize;
+    _showLyrics = prefs.getBool(_kDefaultShowLyricsKey) ?? _defaultShowLyrics;
 
     notifyListeners();
   }
@@ -174,6 +207,44 @@ class SettingsProvider extends ChangeNotifier {
     _listItemHeight = 64;
 
     await _saveSettings();
+    notifyListeners();
+  }
+
+  // 更新歌词设置
+  Future<void> updateLyricSettings({
+    Color? normalColor,
+    Color? activeColor,
+    double? normalSize,
+    double? activeSize,
+    bool? showLyrics,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    if (normalColor != null) {
+      _lyricNormalColor = normalColor;
+      await prefs.setInt(_kLyricNormalColorKey, normalColor.value);
+    }
+    
+    if (activeColor != null) {
+      _lyricActiveColor = activeColor;
+      await prefs.setInt(_kLyricActiveColorKey, activeColor.value);
+    }
+    
+    if (normalSize != null) {
+      _lyricNormalSize = normalSize;
+      await prefs.setDouble(_kLyricNormalSizeKey, normalSize);
+    }
+    
+    if (activeSize != null) {
+      _lyricActiveSize = activeSize;
+      await prefs.setDouble(_kLyricActiveSizeKey, activeSize);
+    }
+    
+    if (showLyrics != null) {
+      _showLyrics = showLyrics;
+      await prefs.setBool(_kDefaultShowLyricsKey, showLyrics);
+    }
+
     notifyListeners();
   }
 } 
