@@ -568,6 +568,92 @@ class NavidromeService implements MusicService {
     }
   }
 
+  // 获取歌词URL
+  String getLyricUrl(String songId) {
+    if (_serverUrl == null || _username == null || _token == null) {
+      throw Exception('Not logged in');
+    }
+    
+    final salt = DateTime.now().millisecondsSinceEpoch.toString();
+    final token = md5.convert(utf8.encode('$_token$salt')).toString();
+    
+    return '$_serverUrl/rest/getLyrics?id=$songId&u=$_username&t=$token&s=$salt&v=1.16.1&c=music_player';
+  }
+
+  // 获取歌词内容
+  Future<String?> getLyrics(String songId) async {
+    try {
+      if (_serverUrl == null || _username == null || _token == null) {
+        print('获取歌词失败: 缺少必要的认证信息');
+        return null;
+      }
+
+      // 尝试使用 getLyrics.view
+      final response = await _dio.get(
+        '$_serverUrl/rest/getLyrics.view',
+        queryParameters: {
+          'id': songId,
+        },
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final subsonicResponse = response.data['subsonic-response'];
+        if (subsonicResponse['status'] == 'ok' && 
+            subsonicResponse['lyrics'] != null) {
+          final value = subsonicResponse['lyrics']['value'];
+          if (value != null && value.toString().isNotEmpty) {
+            return value.toString();
+          }
+        }
+      }
+
+      // 如果没有找到歌词，尝试从本地文件获取
+      final songResponse = await _dio.get(
+        '$_serverUrl/rest/getSong.view',
+        queryParameters: {
+          'id': songId,
+        },
+      );
+
+      if (songResponse.statusCode == 200 && songResponse.data != null) {
+        final song = songResponse.data['subsonic-response']['song'];
+        if (song != null) {
+          final path = song['path'] as String?;
+          if (path != null) {
+            // 构造 .lrc 文件路径
+            final basePath = path.substring(0, path.lastIndexOf('.'));
+            final lrcPath = '$basePath.lrc';
+            
+            try {
+              // 尝试直接从文件系统获取 .lrc 文件
+              final lrcResponse = await _dio.get(
+                '$_serverUrl/rest/download',
+                queryParameters: {
+                  'id': songId,
+                  'path': lrcPath,
+                },
+              );
+              
+              if (lrcResponse.statusCode == 200 && 
+                  lrcResponse.data != null && 
+                  lrcResponse.data.toString().isNotEmpty) {
+                return lrcResponse.data.toString();
+              }
+            } catch (e) {
+              print('获取 .lrc 文件失败: $e');
+            }
+          }
+        }
+      }
+
+      print('未找到歌词');
+      return null;
+    } catch (e) {
+      print('获取歌词错误: $e');
+      return null;
+    }
+  }
+
   @override
   Future<bool> isAvailable() async {
     return await ping();
