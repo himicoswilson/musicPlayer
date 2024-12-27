@@ -7,18 +7,25 @@ class LyricView extends StatefulWidget {
   final double lineHeight;
   final TextStyle normalStyle;
   final TextStyle activeStyle;
-  final Function(Duration)? onPositionChanged;
-  final CrossAxisAlignment alignment;
+  final bool enableDrag;
 
   const LyricView({
     Key? key,
     required this.lyric,
     required this.position,
     this.lineHeight = 32.0,
-    required this.normalStyle,
-    required this.activeStyle,
-    this.onPositionChanged,
-    this.alignment = CrossAxisAlignment.center,
+    this.normalStyle = const TextStyle(
+      color: Colors.grey,
+      fontSize: 16,
+      height: 1.5,
+    ),
+    this.activeStyle = const TextStyle(
+      color: Colors.white,
+      fontSize: 18,
+      height: 1.5,
+      fontWeight: FontWeight.bold,
+    ),
+    this.enableDrag = true,
   }) : super(key: key);
 
   @override
@@ -27,8 +34,9 @@ class LyricView extends StatefulWidget {
 
 class _LyricViewState extends State<LyricView> {
   late ScrollController _scrollController;
-  bool _isDragging = false;
   int _currentIndex = 0;
+  bool _isDragging = false;
+  double _dragOffset = 0;
 
   @override
   void initState() {
@@ -42,59 +50,65 @@ class _LyricViewState extends State<LyricView> {
     super.dispose();
   }
 
-  void _scrollToCurrentLine() {
-    if (_isDragging || widget.lyric == null) return;
+  @override
+  void didUpdateWidget(LyricView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!_isDragging && widget.lyric != null) {
+      _updateCurrentIndex();
+      _scrollToCurrentIndex();
+    }
+  }
+
+  void _updateCurrentIndex() {
+    if (widget.lyric == null || widget.lyric!.lines.isEmpty) return;
 
     final currentLine = widget.lyric!.findLyricLine(widget.position);
-    if (currentLine == null) return;
-
-    final index = widget.lyric!.lyrics.indexOf(currentLine);
-    if (index != _currentIndex) {
-      _currentIndex = index;
-      _scrollController.animateTo(
-        index * widget.lineHeight,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      );
+    if (currentLine == null) {
+      _currentIndex = 0;
+    } else {
+      _currentIndex = widget.lyric!.lines.indexOf(currentLine);
     }
+  }
+
+  void _scrollToCurrentIndex() {
+    if (_currentIndex < 0 || widget.lyric == null) return;
+
+    final offset = _currentIndex * widget.lineHeight;
+    _scrollController.animateTo(
+      offset,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.lyric == null) {
+    if (widget.lyric == null || widget.lyric!.lines.isEmpty) {
       return const Center(
-        child: Text('暂无歌词'),
+        child: Text(
+          '暂无歌词',
+          style: TextStyle(color: Colors.grey),
+        ),
       );
     }
 
-    _scrollToCurrentLine();
-
     return GestureDetector(
-      onVerticalDragStart: (_) {
-        _isDragging = true;
-      },
-      onVerticalDragEnd: (_) {
-        _isDragging = false;
-        Future.delayed(const Duration(seconds: 3), () {
-          if (mounted && !_isDragging) {
-            _scrollToCurrentLine();
-          }
-        });
-      },
-      child: ListView.builder(
-        controller: _scrollController,
-        itemCount: widget.lyric!.lyrics.length,
-        itemBuilder: (context, index) {
-          final line = widget.lyric!.lyrics[index];
-          final isActive = line == widget.lyric!.findLyricLine(widget.position);
+      onVerticalDragStart: widget.enableDrag ? _onDragStart : null,
+      onVerticalDragUpdate: widget.enableDrag ? _onDragUpdate : null,
+      onVerticalDragEnd: widget.enableDrag ? _onDragEnd : null,
+      child: Container(
+        color: Colors.transparent,
+        child: ListView.builder(
+          controller: _scrollController,
+          physics: widget.enableDrag 
+              ? const NeverScrollableScrollPhysics()
+              : const ClampingScrollPhysics(),
+          itemCount: widget.lyric!.lines.length,
+          itemBuilder: (context, index) {
+            final line = widget.lyric!.lines[index];
+            final isActive = index == _currentIndex;
 
-          return GestureDetector(
-            onTap: () {
-              if (widget.onPositionChanged != null) {
-                widget.onPositionChanged!(line.timestamp);
-              }
-            },
-            child: Container(
+            return Container(
               height: widget.lineHeight,
               alignment: Alignment.center,
               child: Text(
@@ -102,10 +116,32 @@ class _LyricViewState extends State<LyricView> {
                 style: isActive ? widget.activeStyle : widget.normalStyle,
                 textAlign: TextAlign.center,
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
+  }
+
+  void _onDragStart(DragStartDetails details) {
+    _isDragging = true;
+    _dragOffset = 0;
+  }
+
+  void _onDragUpdate(DragUpdateDetails details) {
+    _dragOffset += details.delta.dy;
+    final offset = _scrollController.offset - details.delta.dy;
+    _scrollController.jumpTo(offset.clamp(
+      0.0,
+      _scrollController.position.maxScrollExtent,
+    ));
+  }
+
+  void _onDragEnd(DragEndDetails details) {
+    _isDragging = false;
+    // 如果拖动距离很小，认为是点击，恢复到当前��放位置
+    if (_dragOffset.abs() < 10) {
+      _scrollToCurrentIndex();
+    }
   }
 } 
