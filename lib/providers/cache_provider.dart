@@ -29,8 +29,8 @@ class CacheProvider with ChangeNotifier {
     notifyListeners();
 
     try {
-      final appDir = await getApplicationDocumentsDirectory();
-      final dir = Directory('${appDir.path}/song_cache');
+      final appDir = await getApplicationSupportDirectory();
+      final dir = Directory('${appDir.path}/music_cache');
       if (!await dir.exists()) {
         await dir.create(recursive: true);
       }

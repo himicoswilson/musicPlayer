@@ -216,7 +216,7 @@ class NavidromeService implements MusicService {
   Future<Map<String, dynamic>?> getStatus() async {
     try {
       if (_serverUrl == null || _username == null || _token == null) {
-        print('获取状态失败: 缺少必要的认证信息');
+        print('获取状态失败: 缺少必要的���证信息');
         return null;
       }
 
@@ -302,17 +302,39 @@ class NavidromeService implements MusicService {
     }
   }
 
-  // 获取歌曲流媒体URL
+  Future<Map<String, String>> _getBaseParams() async {
+    if (_username == null || _token == null) {
+      throw Exception('未登录');
+    }
+    return {
+      'u': _username!,
+      't': _token!,
+      's': _salt ?? '',
+      'v': '1.16.1',
+      'c': 'musicPlayer',
+      'f': 'json',
+    };
+  }
+
   @override
-  Future<String> getStreamUrl(String songId) async {
-    // 检查是否有缓存
-    final cachedPath = await _cacheService.getCachedFilePath(songId);
-    if (cachedPath != null) {
-      return 'file://$cachedPath';
+  Future<String> getStreamUrl(String id, {int? maxBitRate}) async {
+    if (_serverUrl == null) throw Exception('未设置服务器地址');
+    
+    final params = await _getBaseParams();
+    params['id'] = id;
+    params['format'] = 'mp3';
+    
+    if (maxBitRate != null && maxBitRate > 0) {
+      params['maxBitRate'] = maxBitRate.toString();
+      print('设置音频比特率: $maxBitRate kbps');
+    } else {
+      print('使用原始音质');
     }
 
-    // 如果没有缓存，返回在线 URL
-    return '$_serverUrl/rest/stream.view?id=$songId&u=$_username&t=$_token&s=$_salt&v=1.16.1&c=musicPlayer&f=json';
+    final uri = Uri.parse('$_serverUrl/rest/stream')
+      .replace(queryParameters: params);
+    print('音频流URL: $uri');
+    return uri.toString();
   }
 
   // 获取封面图片URL
@@ -507,7 +529,7 @@ class NavidromeService implements MusicService {
       
       return response.data['subsonic-response']['status'] == 'ok';
     } catch (e) {
-      print('删除歌单��误: $e');
+      print('删除歌单错误: $e');
       return false;
     }
   }
@@ -669,6 +691,7 @@ class NavidromeService implements MusicService {
   Future<bool> cacheMusic(String songId) async {
     try {
       final url = await getStreamUrl(songId);
+      if (url.isEmpty) return false;
       final cachedPath = await _cacheService.cacheFile(url, songId);
       return cachedPath != null;
     } catch (e) {

@@ -55,6 +55,8 @@ dependencies:
   file_picker: ^8.1.6
   device_preview: ^1.2.0
   flutter_media_metadata: ^1.0.0+1
+  # URL 处理
+  url_launcher: ^6.2.4
 
 dev_dependencies:
   flutter_test:

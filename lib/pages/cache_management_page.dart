@@ -1,177 +1,233 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import '../providers/cache_provider.dart';
-import '../models/song.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:path/path.dart' as path;
+import 'package:url_launcher/url_launcher.dart';
+import '../services/cache_service.dart';
+import '../widgets/custom_app_bar.dart';
 
-class CacheManagementPage extends StatelessWidget {
+class CacheManagementPage extends StatefulWidget {
   const CacheManagementPage({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('缓存管理'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => _showCacheSettings(context),
-          ),
-        ],
-      ),
-      body: Consumer<CacheProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
+  State<CacheManagementPage> createState() => _CacheManagementPageState();
+}
 
-          final cachedSongs = provider.getCachedSongs();
-          if (cachedSongs.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.storage,
-                    size: 64,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 16),
-                  Text(
-                    '没有缓存的歌曲',
-                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
+class _CacheManagementPageState extends State<CacheManagementPage> {
+  final CacheService _cacheService = CacheService();
+  List<CacheInfo> _cacheInfoList = [];
+  double _currentCacheSize = 0;
+  int _maxCacheSize = 1024;
+  bool _isLoading = false;
 
-          return Column(
-            children: [
-              _buildCacheStatus(context, provider),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: cachedSongs.length,
-                  itemBuilder: (context, index) {
-                    final song = cachedSongs[index];
-                    return ListTile(
-                      leading: const Icon(Icons.music_note),
-                      title: Text(song.title),
-                      subtitle: Text(song.artist),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.delete),
-                        onPressed: () => provider.removeCachedSong(song.id),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          );
-        },
-      ),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _loadCacheInfo();
   }
 
-  Widget _buildCacheStatus(BuildContext context, CacheProvider provider) {
-    final usedSpace = provider.getCacheSize();
+  Future<void> _loadCacheInfo() async {
+    setState(() => _isLoading = true);
+    try {
+      _cacheInfoList = await _cacheService.getCacheInfo();
+      _currentCacheSize = await _cacheService.getCacheSize();
+      _maxCacheSize = await _cacheService.getMaxCacheSize();
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
-    return FutureBuilder<int>(
-      future: provider.getMaxCacheSize(),
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
+  Future<void> _openCacheDirectory() async {
+    final directory = await getApplicationSupportDirectory();
+    final cachePath = path.join(directory.path, 'music_cache');
+    if (Platform.isWindows) {
+      Process.run('explorer', [cachePath]);
+    } else if (Platform.isMacOS) {
+      Process.run('open', [cachePath]);
+    } else if (Platform.isLinux) {
+      Process.run('xdg-open', [cachePath]);
+    }
+  }
+
+  Future<void> _exportCache() async {
+    final directory = await FilePicker.platform.getDirectoryPath(
+      dialogTitle: '选择导出目录',
+    );
+    if (directory == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      for (var cacheInfo in _cacheInfoList) {
+        final sourcePath = await _cacheService.getCachedFilePath(cacheInfo.songId);
+        if (sourcePath != null) {
+          final sourceFile = File(sourcePath);
+          final targetPath = path.join(directory, path.basename(sourcePath));
+          await sourceFile.copy(targetPath);
         }
-
-        final maxSpace = snapshot.data!;
-        final percentage = usedSpace / maxSpace;
-
-        return Container(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Text(
-                    '已使用 ${_formatSize(usedSpace)} / ${_formatSize(maxSpace)}',
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => provider.clearCache(),
-                    child: const Text('清除全部'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              LinearProgressIndicator(
-                value: percentage,
-                backgroundColor: Colors.grey[200],
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  percentage > 0.9 ? Colors.red : Theme.of(context).primaryColor,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-    );
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('缓存导出成功')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('导出失败: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
-  void _showCacheSettings(BuildContext context) {
-    final provider = context.read<CacheProvider>();
-    
-    showDialog(
+  Future<void> _importCache() async {
+    final result = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      type: FileType.any,
+      dialogTitle: '选择要导入的缓存文件',
+    );
+
+    if (result == null) return;
+
+    setState(() => _isLoading = true);
+    try {
+      for (var file in result.files) {
+        if (file.path != null) {
+          final sourceFile = File(file.path!);
+          final targetPath = path.join(
+            (await getApplicationSupportDirectory()).path,
+            'music_cache',
+            path.basename(file.path!),
+          );
+          await sourceFile.copy(targetPath);
+        }
+      }
+      await _loadCacheInfo();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('缓存导入成功')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('导入失败: $e')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _clearAllCache() async {
+    final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('缓存设置'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('最大缓存大小'),
-            const SizedBox(height: 16),
-            StatefulBuilder(
-              builder: (context, setState) {
-                return FutureBuilder<int>(
-                  future: provider.getMaxCacheSize(),
-                  builder: (context, snapshot) {
-                    if (!snapshot.hasData) {
-                      return const CircularProgressIndicator();
-                    }
-
-                    return Slider(
-                      min: 1,
-                      max: 10,
-                      divisions: 9,
-                      label: '${snapshot.data! ~/ (1024 * 1024 * 1024)} GB',
-                      value: snapshot.data! / (1024 * 1024 * 1024),
-                      onChanged: (value) {
-                        setState(() {
-                          provider.setMaxCacheSize((value * 1024 * 1024 * 1024).toInt());
-                        });
-                      },
-                    );
-                  },
-                );
-              },
-            ),
-          ],
-        ),
+        title: const Text('确认清除'),
+        content: const Text('确定要清除所有缓存吗？此操作不可恢复。'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('确定'),
           ),
         ],
       ),
     );
+
+    if (confirmed != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _cacheService.clearCache();
+      await _loadCacheInfo();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('缓存已清除')),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
   }
 
-  String _formatSize(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: const CustomAppBar(title: '缓存管理'),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        '当前缓存: ${_currentCacheSize.toStringAsFixed(2)}MB / ${_maxCacheSize}MB',
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.refresh),
+                        onPressed: _loadCacheInfo,
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: _openCacheDirectory,
+                        icon: const Icon(Icons.folder_open),
+                        label: const Text('打开缓存目录'),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _exportCache,
+                        icon: const Icon(Icons.file_upload),
+                        label: const Text('导出缓存'),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _importCache,
+                        icon: const Icon(Icons.file_download),
+                        label: const Text('导入缓存'),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _clearAllCache,
+                        icon: const Icon(Icons.delete_forever),
+                        label: const Text('清除所有'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.red,
+                          foregroundColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 32),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: _cacheInfoList.length,
+                    itemBuilder: (context, index) {
+                      final cacheInfo = _cacheInfoList[index];
+                      return ListTile(
+                        title: Text('文件ID: ${cacheInfo.songId}'),
+                        subtitle: Text(
+                          '大小: ${(cacheInfo.size / 1024 / 1024).toStringAsFixed(2)}MB\n'
+                          '最后访问: ${cacheInfo.lastAccessed.toString()}',
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.delete),
+                          onPressed: () async {
+                            await _cacheService.removeCachedFile(cacheInfo.songId);
+                            await _loadCacheInfo();
+                          },
+                        ),
+                        isThreeLine: true,
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+    );
   }
 } 

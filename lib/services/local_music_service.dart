@@ -207,11 +207,20 @@ class LocalMusicService implements MusicService {
   }
 
   @override
-  Future<String> getStreamUrl(String songId) async {
-    return 'file://$songId';
+  Future<String> getStreamUrl(String songId, {int? maxBitRate}) async {
+    final song = await _getSongById(songId);
+    if (song == null) throw Exception('找不到歌曲');
+    return 'file://${song.filePath}';
   }
 
-  @override
+  Future<LocalSong?> _getSongById(String songId) async {
+    if (!_initialized) await init();
+    return _cachedSongs.firstWhere(
+      (song) => song.filePath == songId,
+      orElse: () => throw Exception('找不到歌曲'),
+    );
+  }
+
   String getCoverArtUrl(String? coverArtId) {
     if (coverArtId == null) return '';
     return 'file://$coverArtId';
