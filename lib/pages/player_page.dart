@@ -53,10 +53,9 @@ class _PlayerPageState extends State<PlayerPage> {
     });
 
     try {
-      // TODO: 从 Navidrome 获取歌词文件 URL
-      // 这里需要根据实际的 API 实现
-      final lrcUrl = 'YOUR_LRC_URL/${_currentSong.id}.lrc';
-      final lrcContent = await _lyricService.fetchLyricContent(lrcUrl);
+      final navidromeService = Provider.of<NavidromeService>(context, listen: false);
+      final lrcContent = await navidromeService.getLyrics(_currentSong.id);
+      
       if (lrcContent != null) {
         final lyric = await _lyricService.parseLyric(lrcContent);
         if (mounted) {
