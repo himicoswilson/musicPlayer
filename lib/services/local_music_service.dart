@@ -44,14 +44,14 @@ class LocalMusicService implements MusicService {
     final artists = <String, List<LocalSong>>{};
     
     for (var song in _cachedSongs) {
-      final artistName = song.artistName;
+      final artistName = song.artistName ?? '未知艺术家';
       artists.putIfAbsent(artistName, () => []).add(song);
     }
 
     return artists.entries.map((entry) => Artist(
       id: entry.key,
       name: entry.key,
-      albumCount: entry.value.map((s) => s.albumName).toSet().length,
+      albumCount: entry.value.map((s) => s.albumName ?? '未知专辑').toSet().length,
     )).toList()
       ..sort((a, b) => a.name.compareTo(b.name));
   }
@@ -61,8 +61,8 @@ class LocalMusicService implements MusicService {
     if (!_initialized) await init();
     final albums = <String, List<LocalSong>>{};
     
-    for (var song in _cachedSongs.where((s) => s.artistName == artistId)) {
-      final albumName = song.albumName;
+    for (var song in _cachedSongs.where((s) => (s.artistName ?? '未知艺术家') == artistId)) {
+      final albumName = song.albumName ?? '未知专辑';
       albums.putIfAbsent(albumName, () => []).add(song);
     }
 
@@ -84,13 +84,15 @@ class LocalMusicService implements MusicService {
     final albums = <String, List<LocalSong>>{};
     
     for (var song in _cachedSongs) {
-      final albumKey = '${song.artistName}_${song.albumName}';
+      final artist = song.artistName ?? '未知艺术家';
+      final albumName = song.albumName ?? '未知专辑';
+      final albumKey = '${artist}_$albumName';
       albums.putIfAbsent(albumKey, () => []).add(song);
     }
 
     var allAlbums = albums.entries.map((entry) {
-      final artist = entry.value.first.artistName;
-      final albumName = entry.value.first.albumName;
+      final artist = entry.value.first.artistName ?? '未知艺术家';
+      final albumName = entry.value.first.albumName ?? '未知专辑';
       return Album(
         id: '${artist}_$albumName',
         name: albumName,
@@ -158,37 +160,37 @@ class LocalMusicService implements MusicService {
     
     final matchingSongs = _cachedSongs.where((song) =>
         song.title.toLowerCase().contains(query) ||
-        song.artistName.toLowerCase().contains(query) ||
-        song.albumName.toLowerCase().contains(query)
+        (song.artistName?.toLowerCase() ?? '').contains(query) ||
+        (song.albumName?.toLowerCase() ?? '').contains(query)
     ).toList();
 
     final artists = matchingSongs
-        .map((s) => s.artistName)
+        .map((s) => s.artistName ?? '未知艺术家')
         .toSet()
         .map((name) => Artist(
               id: name,
               name: name,
               albumCount: matchingSongs
-                  .where((s) => s.artistName == name)
-                  .map((s) => s.albumName)
+                  .where((s) => (s.artistName ?? '未知艺术家') == name)
+                  .map((s) => s.albumName ?? '未知专辑')
                   .toSet()
                   .length,
             ))
         .toList();
 
     final albums = matchingSongs
-        .map((s) => '${s.artistName}_${s.albumName}')
+        .map((s) => '${s.artistName ?? '未知艺术家'}_${s.albumName ?? '未知专辑'}')
         .toSet()
         .map((key) {
           final songs = matchingSongs
-              .where((s) => '${s.artistName}_${s.albumName}' == key)
+              .where((s) => '${s.artistName ?? '未知艺术家'}_${s.albumName ?? '未知专辑'}' == key)
               .toList();
           final firstSong = songs.first;
           return Album(
             id: key,
-            name: firstSong.albumName,
-            artistId: firstSong.artistName,
-            artistName: firstSong.artistName,
+            name: firstSong.albumName ?? '未知专辑',
+            artistId: firstSong.artistName ?? '未知艺术家',
+            artistName: firstSong.artistName ?? '未知艺术家',
             songCount: songs.length,
             duration: songs.fold<int>(0, (sum, song) => 
                 sum + song.duration),
@@ -205,7 +207,7 @@ class LocalMusicService implements MusicService {
   }
 
   @override
-  String getStreamUrl(String songId) {
+  Future<String> getStreamUrl(String songId) async {
     return 'file://$songId';
   }
 
@@ -303,12 +305,13 @@ class LocalMusicService implements MusicService {
       }
     } catch (e) {
       print('Error scanning directory: $e');
-      // 如果扫描失败，返回空列表而不是抛出异常
       return [];
     }
 
     musicFiles.sort((a, b) {
-      final artistCompare = a.artistName.compareTo(b.artistName);
+      final artistA = a.artistName ?? '未知艺术家';
+      final artistB = b.artistName ?? '未知艺术家';
+      final artistCompare = artistA.compareTo(artistB);
       if (artistCompare != 0) return artistCompare;
       return a.title.compareTo(b.title);
     });

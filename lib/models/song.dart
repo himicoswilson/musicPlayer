@@ -1,38 +1,31 @@
 class Song {
   final String id;
-  final String title;
-  final String albumId;
-  final String albumName;
-  final String artistId;
-  final String artistName;
-  final String? coverArtId;
-  final int duration;
-  final int track;
-  final int? year;
-  final String? genre;
-  final int size;
-  final String suffix;
-  final int bitRate;
+  String title;
+  String? albumId;
+  String? albumName;
+  String? artistId;
+  String? artistName;
+  String? coverArtId;
+  int duration;
+  int track;
+  int? year;
 
   Song({
     required this.id,
     required this.title,
-    required this.albumId,
-    required this.albumName,
-    required this.artistId,
-    required this.artistName,
+    this.albumId,
+    this.albumName,
+    this.artistId,
+    this.artistName,
     this.coverArtId,
-    required this.duration,
-    required this.track,
+    this.duration = 0,
+    this.track = 0,
     this.year,
-    this.genre,
-    required this.size,
-    required this.suffix,
-    required this.bitRate,
   });
 
-  String get artist => artistName;
-  String get coverArtUrl => coverArtId != null ? '/rest/getCoverArt.view?id=$coverArtId' : '';
+  String get artist => artistName ?? '未知艺术家';
+
+  String? get coverArtUrl => coverArtId != null ? '/rest/getCoverArt.view?id=$coverArtId' : null;
 
   factory Song.fromJson(Map<String, dynamic> json) {
     return Song(
@@ -46,10 +39,6 @@ class Song {
       duration: json['duration'] ?? 0,
       track: json['track'] ?? 0,
       year: json['year'],
-      genre: json['genre'],
-      size: json['size'] ?? 0,
-      suffix: json['suffix'] ?? '',
-      bitRate: json['bitRate'] ?? 0,
     );
   }
 
@@ -65,10 +54,16 @@ class Song {
       'duration': duration,
       'track': track,
       'year': year,
-      'genre': genre,
-      'size': size,
-      'suffix': suffix,
-      'bitRate': bitRate,
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Song &&
+          runtimeType == other.runtimeType &&
+          id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 } 

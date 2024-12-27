@@ -25,7 +25,7 @@ class PlayerPage extends StatefulWidget {
 class _PlayerPageState extends State<PlayerPage> {
   late Song _currentSong;
   late bool _showLyrics;
-  
+
   @override
   void initState() {
     super.initState();
@@ -107,7 +107,7 @@ class _PlayerPageState extends State<PlayerPage> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Center(
+                child: Center(
         child: LyricView(
           lyric: provider.currentLyric,
           position: provider.position ?? Duration.zero,
@@ -136,71 +136,71 @@ class _PlayerPageState extends State<PlayerPage> {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 32),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // 封面图片
-            Container(
-              width: 300,
-              height: 300,
-              margin: const EdgeInsets.all(32),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.2),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
-                  ),
-                ],
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(20),
-                child: _currentSong.coverArtId != null
-                    ? Image.network(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // 封面图片
+                      Container(
+                        width: 300,
+                        height: 300,
+                        margin: const EdgeInsets.all(32),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(20),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.2),
+                              blurRadius: 20,
+                              offset: const Offset(0, 10),
+                            ),
+                          ],
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(20),
+                          child: _currentSong.coverArtId != null
+                              ? Image.network(
                         Provider.of<NavidromeService>(context, listen: false)
                             .getCoverArtUrl(_currentSong.coverArtId!),
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) =>
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) =>
                             Container(
                               color: Colors.grey[300],
                               child: const Icon(Icons.music_note, size: 100),
                             ),
-                      )
-                    : Container(
-                        color: Colors.grey[300],
-                        child: const Icon(Icons.music_note, size: 100),
-                      ),
-              ),
-            ),
-            // 歌曲信息
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(
-                children: [
-                  Text(
-                    _currentSong.title,
-                    style: Theme.of(context).textTheme.titleLarge,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    _currentSong.artist ?? '未知歌手',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          color: Colors.grey[600],
+                                )
+                              : Container(
+                                  color: Colors.grey[300],
+                                  child: const Icon(Icons.music_note, size: 100),
+                                ),
                         ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
+                      ),
+                      // 歌曲信息
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Column(
+                          children: [
+                            Text(
+                              _currentSong.title,
+                              style: Theme.of(context).textTheme.titleLarge,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                    _currentSong.artist ?? '未知歌手',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    color: Colors.grey[600],
+                                  ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
+                ),
     );
   }
 

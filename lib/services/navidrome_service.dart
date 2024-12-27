@@ -7,10 +7,12 @@ import '../models/album.dart';
 import '../models/song.dart';
 import '../models/playlist.dart';
 import 'music_service.dart';
+import 'cache_service.dart';
 
 class NavidromeService implements MusicService {
   late final Dio _dio;
   final FlutterSecureStorage _secureStorage;
+  final CacheService _cacheService;
   String? _serverUrl;
   String? _username;
   String? _salt;
@@ -34,7 +36,8 @@ class NavidromeService implements MusicService {
             accessibility: KeychainAccessibility.first_unlock,
             synchronizable: true,
           ),
-        ) {
+        ),
+        _cacheService = CacheService() {
     _dio = Dio(BaseOptions(
       connectTimeout: const Duration(seconds: 5),
       receiveTimeout: const Duration(seconds: 5),
@@ -300,7 +303,15 @@ class NavidromeService implements MusicService {
   }
 
   // 获取歌曲流媒体URL
-  String getStreamUrl(String songId) {
+  @override
+  Future<String> getStreamUrl(String songId) async {
+    // 检查是否有缓存
+    final cachedPath = await _cacheService.getCachedFilePath(songId);
+    if (cachedPath != null) {
+      return 'file://$cachedPath';
+    }
+
+    // 如果没有缓存，返回在线 URL
     return '$_serverUrl/rest/stream.view?id=$songId&u=$_username&t=$_token&s=$_salt&v=1.16.1&c=musicPlayer&f=json';
   }
 
@@ -496,7 +507,7 @@ class NavidromeService implements MusicService {
       
       return response.data['subsonic-response']['status'] == 'ok';
     } catch (e) {
-      print('删除歌单错误: $e');
+      print('删除歌单��误: $e');
       return false;
     }
   }
@@ -654,8 +665,67 @@ class NavidromeService implements MusicService {
     }
   }
 
+  // 添加缓存相关的方法
+  Future<bool> cacheMusic(String songId) async {
+    try {
+      final url = await getStreamUrl(songId);
+      final cachedPath = await _cacheService.cacheFile(url, songId);
+      return cachedPath != null;
+    } catch (e) {
+      print('缓存音乐失败: $e');
+      return false;
+    }
+  }
+
+  Future<bool> isMusicCached(String songId) async {
+    return _cacheService.isCached(songId);
+  }
+
+  Future<bool> removeMusicCache(String songId) async {
+    return _cacheService.removeCachedFile(songId);
+  }
+
+  Future<List<CacheInfo>> getCacheInfo() async {
+    return _cacheService.getCacheInfo();
+  }
+
+  Future<double> getCacheSize() async {
+    return _cacheService.getCacheSize();
+  }
+
+  Future<void> setMaxCacheSize(int sizeMB) async {
+    await _cacheService.setMaxCacheSize(sizeMB);
+  }
+
+  Future<int> getMaxCacheSize() async {
+    return _cacheService.getMaxCacheSize();
+  }
+
   @override
   Future<bool> isAvailable() async {
     return await ping();
+  }
+
+  // 获取歌曲信息
+  Future<Song?> getSongInfo(String songId) async {
+    try {
+      final response = await _dio.get(
+        '$_serverUrl/rest/getSong.view',
+        queryParameters: {
+          'id': songId,
+        },
+      );
+
+      if (response.data['subsonic-response']['status'] == 'ok') {
+        final songData = response.data['subsonic-response']['song'];
+        if (songData != null) {
+          return Song.fromJson(songData);
+        }
+      }
+      return null;
+    } catch (e) {
+      print('获取歌曲信息失败: $e');
+      return null;
+    }
   }
 } 
