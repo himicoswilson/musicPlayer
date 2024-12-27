@@ -24,55 +24,12 @@ class PlayerPage extends StatefulWidget {
 
 class _PlayerPageState extends State<PlayerPage> {
   late Song _currentSong;
-  Lyric? _lyric;
-  bool _isLoadingLyric = false;
-  final _lyricService = LyricService();
   bool _showLyrics = true;  // 控制是否显示歌词
 
   @override
   void initState() {
     super.initState();
     _currentSong = widget.song;
-    _loadLyric();
-  }
-
-  @override
-  void didUpdateWidget(PlayerPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (widget.song != _currentSong) {
-      _currentSong = widget.song;
-      _loadLyric();
-    }
-  }
-
-  Future<void> _loadLyric() async {
-    if (_isLoadingLyric) return;
-    setState(() {
-      _isLoadingLyric = true;
-      _lyric = null;
-    });
-
-    try {
-      final navidromeService = Provider.of<NavidromeService>(context, listen: false);
-      final lrcContent = await navidromeService.getLyrics(_currentSong.id);
-      
-      if (lrcContent != null) {
-        final lyric = await _lyricService.parseLyric(lrcContent);
-        if (mounted) {
-          setState(() {
-            _lyric = lyric;
-          });
-        }
-      }
-    } catch (e) {
-      debugPrint('Error loading lyric: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingLyric = false;
-        });
-      }
-    }
   }
 
   @override
@@ -82,7 +39,6 @@ class _PlayerPageState extends State<PlayerPage> {
         // 更新当前歌曲
         if (provider.currentSong != null && provider.currentSong != _currentSong) {
           _currentSong = provider.currentSong!;
-          _loadLyric();
         }
 
         return Scaffold(
@@ -140,14 +96,14 @@ class _PlayerPageState extends State<PlayerPage> {
   }
 
   Widget _buildLyricView(PlayerProvider provider) {
-    if (_isLoadingLyric) {
+    if (provider.isLoadingLyric) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
 
     return LyricView(
-      lyric: _lyric,
+      lyric: provider.currentLyric,
       position: provider.position ?? Duration.zero,
       lineHeight: 32.0,
       normalStyle: const TextStyle(
