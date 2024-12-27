@@ -2,67 +2,45 @@ class LyricLine {
   final Duration timestamp;
   final String text;
 
-  const LyricLine({
+  LyricLine({
     required this.timestamp,
     required this.text,
   });
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is LyricLine &&
-          runtimeType == other.runtimeType &&
-          timestamp == other.timestamp &&
-          text == other.text;
-
-  @override
-  int get hashCode => timestamp.hashCode ^ text.hashCode;
 }
 
 class Lyric {
-  final List<LyricLine> _lines;
+  final List<LyricLine> lines;
+  final String? title;
+  final String? artist;
+  final String? album;
+  final String? by;
+  final Duration? offset;
 
-  Lyric(this._lines);
-
-  List<LyricLine> get lyrics => _lines;
+  Lyric({
+    required this.lines,
+    this.title,
+    this.artist,
+    this.album,
+    this.by,
+    this.offset,
+  });
 
   LyricLine? findLyricLine(Duration position) {
-    if (_lines.isEmpty) return null;
+    if (lines.isEmpty) return null;
     
-    // 如果当前时间小于第一行歌词时间，返回第一行
-    if (position < _lines.first.timestamp) {
-      return _lines.first;
-    }
+    // 考虑偏移量
+    final adjustedPosition = position - (offset ?? Duration.zero);
     
-    // 如果当前时间大于最后一行歌词时间，返回最后一行
-    if (position > _lines.last.timestamp) {
-      return _lines.last;
-    }
+    // 找到第一个时间戳大于当前位置的歌词的索引
+    int index = lines.indexWhere((line) => line.timestamp > adjustedPosition);
     
-    // 二分查找当前时间对应的歌词
-    int left = 0;
-    int right = _lines.length - 1;
+    // 如果没找到，说明当前位置已经超过最后一句歌词
+    if (index == -1) return lines.last;
     
-    while (left <= right) {
-      final mid = (left + right) ~/ 2;
-      final line = _lines[mid];
-      
-      if (line.timestamp == position) {
-        return line;
-      }
-      
-      if (line.timestamp < position) {
-        // 如果是最后一行，或者下一行的时间戳大于当前时间，说明当前行就是要找的歌词
-        if (mid == _lines.length - 1 || _lines[mid + 1].timestamp > position) {
-          return line;
-        }
-        left = mid + 1;
-      } else {
-        right = mid - 1;
-      }
-    }
+    // 如果是第一句歌词，并且还没到时间，返回null
+    if (index == 0) return null;
     
-    // 如果没找到，返回最近的一行
-    return _lines[left];
+    // 返回前一句歌词
+    return lines[index - 1];
   }
 } 

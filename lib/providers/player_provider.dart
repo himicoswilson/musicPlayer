@@ -1,11 +1,9 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/song.dart';
-import '../models/lyric.dart';
 import '../services/player_service.dart';
 import '../services/navidrome_service.dart';
 import '../services/local_music_service.dart';
-import '../services/lyric_service.dart';
 import '../models/local_song.dart';
 import '../services/music_service.dart';
 
@@ -20,7 +18,6 @@ class PlayerProvider extends ChangeNotifier {
   final PlayerService _playerService = PlayerService();
   final LocalMusicService _localMusicService = LocalMusicService();
   final NavidromeService _navidromeService = NavidromeService();
-  final LyricService _lyricService = LyricService();
   MusicService? _currentMusicService;
   
   // 播放模式
@@ -36,16 +33,9 @@ class PlayerProvider extends ChangeNotifier {
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   bool _isDraggingProgress = false;
-
-  // 歌词相关
-  Lyric? _currentLyric;
-  Lyric? get currentLyric => _currentLyric;
-  bool _isLoadingLyric = false;
-  bool get isLoadingLyric => _isLoadingLyric;
-  final Map<String, Lyric> _lyricCache = {};
   
   PlayerProvider() {
-    // 设置播放状态监听回调
+    // 设置播放状态监听��调
     _playerService.onPositionChanged = (position) {
       updatePosition(position);
     };
@@ -76,13 +66,6 @@ class PlayerProvider extends ChangeNotifier {
   }
   
   Future<void> playSong(Song song) async {
-    _currentSong = song;
-    _currentLyric = null;
-    notifyListeners();
-
-    // 开始加载歌词
-    _preloadLyric(song);
-
     try {
       _setMusicService(song);
       
@@ -97,6 +80,9 @@ class PlayerProvider extends ChangeNotifier {
           _playlist.add(song);
         }
       }
+      
+      // 设置当前歌曲
+      _currentSong = song;
       
       // 如果歌曲不在播放列表中，添加它
       if (!_playlist.contains(song)) {
@@ -272,51 +258,5 @@ class PlayerProvider extends ChangeNotifier {
       throw StateError('未设置音乐服务');
     }
     return _currentMusicService!.getCoverArtUrl(coverArtId);
-  }
-
-  // 预加载歌词
-  Future<void> _preloadLyric(Song song) async {
-    if (_lyricCache.containsKey(song.id)) {
-      _currentLyric = _lyricCache[song.id];
-      notifyListeners();
-      return;
-    }
-
-    if (_isLoadingLyric) return;
-
-    _isLoadingLyric = true;
-    notifyListeners();
-
-    try {
-      final lrcContent = await _navidromeService.getLyrics(song.id);
-      if (lrcContent != null) {
-        final lyric = await _lyricService.parseLyric(lrcContent);
-        if (lyric != null) {
-          _lyricCache[song.id] = lyric;
-          if (song.id == _currentSong?.id) {
-            _currentLyric = lyric;
-            notifyListeners();
-          }
-        }
-      }
-    } catch (e) {
-      debugPrint('加载歌词失败: $e');
-    } finally {
-      _isLoadingLyric = false;
-      notifyListeners();
-    }
-  }
-
-  // 清除歌词缓存
-  void clearLyricCache() {
-    _lyricCache.clear();
-    _currentLyric = null;
-    notifyListeners();
-  }
-
-  // 获取当前歌词
-  LyricLine? getCurrentLyricLine() {
-    if (_currentLyric == null) return null;
-    return _currentLyric!.findLyricLine(_position);
   }
 } 

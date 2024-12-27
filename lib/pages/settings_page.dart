@@ -9,13 +9,13 @@ import '../widgets/mini_player.dart';
 import '../pages/home_page.dart';
 
 class SettingsPage extends StatelessWidget {
-  const SettingsPage({Key? key}) : super(key: key);
+  const SettingsPage({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('设置'),
+        title: const Text('设置')
       ),
       body: Consumer2<SettingsProvider, AuthProvider>(
         builder: (context, settings, auth, child) {
@@ -48,6 +48,8 @@ class SettingsPage extends StatelessWidget {
                   );
                 },
               ),
+              const Divider(),
+              // 其他设置项...
             ],
           );
         },
@@ -56,78 +58,8 @@ class SettingsPage extends StatelessWidget {
   }
 }
 
-class ThemeSettingsPage extends StatelessWidget {
-  const ThemeSettingsPage({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        appBar: AppBar(
-          title: const Text('主题设置'),
-          bottom: const TabBar(
-            tabs: [
-              Tab(text: '基础'),
-              Tab(text: '播放'),
-              Tab(text: '列表'),
-            ],
-          ),
-        ),
-        body: TabBarView(
-          children: [
-            _BasicThemeTab(),
-            _PlayerSettingsTab(),
-            _ListStyleSettingsTab(),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BasicThemeTab extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<SettingsProvider>(
-      builder: (context, settings, child) {
-        return ListView(
-          children: [
-            ListTile(
-              title: const Text('主题色'),
-              trailing: Container(
-                width: 24,
-                height: 24,
-                decoration: BoxDecoration(
-                  color: settings.primaryColor,
-                  shape: BoxShape.circle,
-                ),
-              ),
-              onTap: () async {
-                final color = await showColorPicker(
-                  context: context,
-                  initialColor: settings.primaryColor,
-                );
-                if (color != null) {
-                  settings.updatePrimaryColor(color);
-                }
-              },
-            ),
-            const Divider(),
-            SwitchListTile(
-              title: const Text('显示导航栏标签'),
-              value: settings.showNavigationLabels,
-              onChanged: settings.toggleNavigationLabels,
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
 class MusicSourceSettingsPage extends StatefulWidget {
-  const MusicSourceSettingsPage({Key? key}) : super(key: key);
+  const MusicSourceSettingsPage({super.key});
 
   @override
   State<MusicSourceSettingsPage> createState() => _MusicSourceSettingsPageState();
@@ -398,179 +330,1010 @@ class _MusicSourceSettingsPageState extends State<MusicSourceSettingsPage> {
   }
 }
 
-Future<Color?> showColorPicker({
-  required BuildContext context,
-  required Color initialColor,
-}) async {
-  return showDialog<Color>(
-    context: context,
-    builder: (BuildContext context) {
-      Color selectedColor = initialColor;
-      return AlertDialog(
-        title: const Text('选择颜色'),
-        content: SingleChildScrollView(
-          child: ColorPicker(
-            pickerColor: initialColor,
-            onColorChanged: (Color color) {
-              selectedColor = color;
-            },
-            enableAlpha: false,
-            labelTypes: const [],
-          ),
-        ),
-        actions: <Widget>[
-                    TextButton(
-                      child: const Text('取消'),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-                    ),
-                    TextButton(
-            child: const Text('确定'),
-                      onPressed: () {
-              Navigator.of(context).pop(selectedColor);
-            },
-          ),
-        ],
-      );
-    },
-  );
+class ThemeSettingsPage extends StatefulWidget {
+  const ThemeSettingsPage({super.key});
+
+  @override
+  State<ThemeSettingsPage> createState() => _ThemeSettingsPageState();
 }
 
-class _PlayerSettingsTab extends StatelessWidget {
+class _ThemeSettingsPageState extends State<ThemeSettingsPage> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
+  
+  @override
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 4, vsync: this);
+  }
+  
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Consumer<SettingsProvider>(
-      builder: (context, settings, child) {
-    return ListView(
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('主题设置'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.preview_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const HomePage(),
+                  maintainState: true,
+                ),
+              );
+            },
+            tooltip: '预览',
+          ),
+          IconButton(
+            icon: const Icon(Icons.delete),
+            onPressed: () {
+              showDialog(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: const Text('恢复默认设置'),
+                  content: const Text('确定要恢复所有设置为默认值吗？'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text('取消'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Provider.of<SettingsProvider>(context, listen: false)
+                            .resetAllSettings();
+                        Navigator.pop(context);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('已恢复所有设置为默认值'),
+                            duration: Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      child: const Text('确定'),
+                    ),
+                  ],
+                ),
+              );
+            },
+            tooltip: '恢复所有设置',
+          ),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
+          indicatorSize: TabBarIndicatorSize.tab,
+          labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+          tabs: const [
+            Tab(text: '基础设置'),
+            Tab(text: '迷你播放器'),
+            Tab(text: '播放页面'),
+            Tab(text: '列表样式'),
+          ],
+        ),
+      ),
+      body: Consumer<SettingsProvider>(
+        builder: (context, settings, child) {
+          return Column(
+            children: [
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _buildBasicSettings(context, settings),
+                    _buildMiniPlayerSettings(context, settings),
+                    _buildPlayerSettings(context, settings),
+                    _buildListSettings(context, settings),
+                  ],
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildBasicSettings(BuildContext context, SettingsProvider settings) {
+    return Column(
       children: [
-            // 封面设置
-            ListTile(
-              title: const Text('封面大小比例'),
-              subtitle: Slider(
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(top: 16),
+            children: [
+              _ColorPicker(
+                label: '主题色',
+                value: settings.primaryColor,
+                onChanged: settings.updatePrimaryColor,
+              ),
+              _SliderSetting(
+                label: '导航栏高度',
+                value: settings.navigationBarHeight,
+                min: 60,
+                max: 100,
+                defaultValue: 80,
+                onChanged: settings.updateNavigationBarHeight,
+              ),
+              _SwitchSetting(
+                label: '显示导航栏标签',
+                value: settings.showNavigationLabels,
+                onChanged: settings.toggleNavigationLabels,
+              ),
+            ],
+          ),
+        ),
+        Container(
+          height: 200,
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              NavigationBar(
+                height: settings.navigationBarHeight,
+                labelBehavior: settings.showNavigationLabels
+                    ? NavigationDestinationLabelBehavior.alwaysShow
+                    : NavigationDestinationLabelBehavior.onlyShowSelected,
+                selectedIndex: 0,
+                destinations: const [
+                  NavigationDestination(
+                    icon: Icon(Icons.music_note_outlined),
+                    selectedIcon: Icon(Icons.music_note),
+                    label: '听听',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.search_outlined),
+                    selectedIcon: Icon(Icons.search),
+                    label: '浏览',
+                  ),
+                  NavigationDestination(
+                    icon: Icon(Icons.library_music_outlined),
+                    selectedIcon: Icon(Icons.library_music),
+                    label: '音乐库',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMiniPlayerSettings(BuildContext context, SettingsProvider settings) {
+    return ListView(
+      padding: const EdgeInsets.only(top: 16),
+      children: [
+        Expanded(
+          child: Column(
+            children: [
+              _SliderSetting(
+                label: '播放器高度',
+                value: settings.miniPlayerHeight,
+                min: 48,
+                max: 80,
+                defaultValue: 64,
+                onChanged: settings.updateMiniPlayerHeight,
+              ),
+              _SliderSetting(
+                label: '封面圆角',
+                value: settings.miniPlayerCoverRadius,
+                min: 0,
+                max: 24,
+                defaultValue: 6,
+                onChanged: settings.updateMiniPlayerCoverRadius,
+              ),
+              _SwitchSetting(
+                label: '显示进度条',
+                value: settings.showMiniPlayerProgress,
+                onChanged: settings.toggleMiniPlayerProgress,
+              ),
+              const SizedBox(height: 32),
+              // 预览区域
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (settings.showMiniPlayerProgress)
+                      LinearProgressIndicator(
+                        value: 0.7,
+                        minHeight: 1,
+                        backgroundColor: Colors.grey[200],
+                        valueColor: AlwaysStoppedAnimation<Color>(
+                          Theme.of(context).primaryColor,
+                        ),
+                      ),
+                    Container(
+                      height: settings.miniPlayerHeight,
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 48,
+                            height: 48,
+                            margin: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(settings.miniPlayerCoverRadius),
+                              color: Colors.grey[200],
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(Icons.album, size: 24),
+                          ),
+                          Expanded(
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '预览歌曲',
+                                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    '预览艺术家',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Colors.grey[600],
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          Row(
+                            children: [
+                              IconButton(
+                                icon: Icon(
+                                  Icons.play_arrow_rounded,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                                iconSize: 32,
+                                onPressed: () {},
+                              ),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.skip_next_rounded,
+                                  color: Theme.of(context).primaryColor,
+                                ),
+                                iconSize: 32,
+                                onPressed: () {},
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPlayerSettings(BuildContext context, SettingsProvider settings) {
+    final size = MediaQuery.of(context).size;
+    final previewWidth = size.width * 0.8;
+    final previewHeight = previewWidth * 1.6;
+    final coverSize = previewWidth * settings.coverArtSizeRatio;
+
+    return ListView(
+      padding: const EdgeInsets.only(top: 16),
+      children: [
+        Expanded(
+          child: Column(
+            children: [
+              _SliderSetting(
+                label: '封面大小比例',
                 value: settings.coverArtSizeRatio,
                 min: 0.5,
                 max: 0.9,
-                divisions: 40,
-                label: settings.coverArtSizeRatio.toStringAsFixed(2),
+                defaultValue: 0.75,
                 onChanged: settings.updateCoverArtSizeRatio,
               ),
-            ),
-            SwitchListTile(
-              title: const Text('显示封面阴影'),
+              _SwitchSetting(
+                label: '显示封面阴影',
                 value: settings.showCoverArtShadow,
                 onChanged: settings.toggleCoverArtShadow,
               ),
-            const Divider(),
-            
-            // 歌词设置
-            SwitchListTile(
-              title: const Text('默认显示歌词'),
-              subtitle: const Text('打开播放页面时是否默认显示歌词'),
-              value: settings.defaultShowLyrics,
-              onChanged: (value) {
-                settings.updateLyricSettings(showLyrics: value);
-              },
-            ),
-            ListTile(
-              title: const Text('普通歌词颜色'),
-              trailing: Container(
-                width: 24,
-                height: 24,
-                        decoration: BoxDecoration(
-                  color: settings.lyricNormalColor,
-                                shape: BoxShape.circle,
-                ),
-              ),
-              onTap: () async {
-                final color = await showColorPicker(
-                  context: context,
-                  initialColor: settings.lyricNormalColor,
-                );
-                if (color != null) {
-                  settings.updateLyricSettings(normalColor: color);
-                }
-              },
-            ),
-            ListTile(
-              title: const Text('高亮歌词颜色'),
-              trailing: Container(
-                width: 24,
-                height: 24,
+              const SizedBox(height: 32),
+              // 预览区域
+              Container(
+                width: previewWidth,
+                height: previewHeight,
                 decoration: BoxDecoration(
-                  color: settings.lyricActiveColor,
-                  shape: BoxShape.circle,
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 8,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // 顶部栏
+                      Container(
+                        height: 56,
+                        padding: const EdgeInsets.symmetric(horizontal: 8),
+                        child: Row(
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.keyboard_arrow_down),
+                              onPressed: null,
+                            ),
+                            const Spacer(),
+                            IconButton(
+                              icon: const Icon(Icons.playlist_play),
+                              onPressed: null,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      // 封面
+                      Container(
+                        width: coverSize,
+                        height: coverSize,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[200],
+                          borderRadius: BorderRadius.circular(8),
+                          boxShadow: settings.showCoverArtShadow
+                              ? [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 20,
+                                    offset: const Offset(0, 10),
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: const Icon(Icons.album, size: 64),
+                      ),
+                      const SizedBox(height: 32),
+                      // 歌曲信息
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Column(
+                          children: [
+                            Text(
+                              '预览歌曲',
+                              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '预览艺术家',
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                color: Colors.grey[600],
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      // 进度条
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Column(
+                          children: [
+                            SliderTheme(
+                              data: SliderTheme.of(context).copyWith(
+                                trackHeight: 2,
+                                thumbShape: const RoundSliderThumbShape(
+                                  enabledThumbRadius: 6,
+                                ),
+                                overlayShape: const RoundSliderOverlayShape(
+                                  overlayRadius: 12,
+                                ),
+                                activeTrackColor: Theme.of(context).primaryColor,
+                                inactiveTrackColor: Colors.grey[300],
+                                thumbColor: Theme.of(context).primaryColor,
+                                overlayColor: Theme.of(context).primaryColor.withOpacity(0.2),
+                              ),
+                              child: Slider(
+                                value: 0.7,
+                                onChanged: null,
+                              ),
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Text(
+                                    '2:10',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                  Text(
+                                    '3:00',
+                                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // 播放控制
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Icon(Icons.repeat, color: Theme.of(context).primaryColor),
+                            Icon(Icons.skip_previous_rounded, size: 40),
+                            Container(
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Theme.of(context).primaryColor,
+                              ),
+                              child: const Padding(
+                                padding: EdgeInsets.all(8),
+                                child: Icon(
+                                  Icons.play_arrow_rounded,
+                                  size: 48,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            Icon(Icons.skip_next_rounded, size: 40),
+                            Icon(Icons.playlist_play, color: Theme.of(context).primaryColor),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
-              onTap: () async {
-                final color = await showColorPicker(
-                  context: context,
-                  initialColor: settings.lyricActiveColor,
-                );
-                if (color != null) {
-                  settings.updateLyricSettings(activeColor: color);
-                }
-              },
-            ),
-            ListTile(
-              title: const Text('普通歌词字号'),
-              subtitle: Slider(
-                value: settings.lyricNormalSize,
-                min: 12,
-                max: 24,
-                divisions: 12,
-                label: settings.lyricNormalSize.toStringAsFixed(1),
-                onChanged: (value) {
-                  settings.updateLyricSettings(normalSize: value);
-                },
-              ),
-            ),
-            ListTile(
-              title: const Text('高亮歌词字号'),
-              subtitle: Slider(
-                value: settings.lyricActiveSize,
-                min: 14,
-                max: 28,
-                divisions: 14,
-                label: settings.lyricActiveSize.toStringAsFixed(1),
-                onChanged: (value) {
-                  settings.updateLyricSettings(activeSize: value);
-                },
-            ),
+              const SizedBox(height: 32),
+            ],
           ),
-        ],
-        );
-      },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildListSettings(BuildContext context, SettingsProvider settings) {
+    return Column(
+      children: [
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.only(top: 16),
+            children: [
+              _SliderSetting(
+                label: '列表项高度',
+                value: settings.listItemHeight,
+                min: 48,
+                max: 80,
+                defaultValue: 64,
+                onChanged: settings.updateListItemHeight,
+              ),
+              _SwitchSetting(
+                label: '显示分割线',
+                value: settings.showListDividers,
+                onChanged: settings.toggleListDividers,
+              ),
+            ],
+          ),
+        ),
+        Container(
+          height: 300,
+          margin: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.1),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: ListView.separated(
+            itemCount: 5,
+            separatorBuilder: (context, index) => settings.showListDividers
+                ? const Divider(height: 1)
+                : const SizedBox.shrink(),
+            itemBuilder: (context, index) {
+              return Container(
+                height: settings.listItemHeight,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.grey[200],
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Icon(Icons.music_note),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            '预览歌曲 ${index + 1}',
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            '预览艺术家',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 }
 
-class _ListStyleSettingsTab extends StatelessWidget {
+enum PreviewType {
+  listen,
+  browse,
+  library,
+}
+
+class _PreviewContent extends StatelessWidget {
+  final SettingsProvider settings;
+  final PreviewType type;
+
+  const _PreviewContent({
+    required this.settings,
+    required this.type,
+  });
+
   @override
   Widget build(BuildContext context) {
-    return Consumer<SettingsProvider>(
-      builder: (context, settings, child) {
-        return ListView(
-        children: [
-            SwitchListTile(
-              title: const Text('显示分割线'),
-              value: settings.showListDividers,
-              onChanged: settings.toggleListDividers,
-            ),
-            ListTile(
-              title: const Text('列表项高度'),
-      subtitle: Slider(
-                value: settings.listItemHeight,
-                min: 48,
-                max: 80,
-                divisions: 16,
-                label: settings.listItemHeight.toStringAsFixed(1),
-                onChanged: settings.updateListItemHeight,
+    switch (type) {
+      case PreviewType.listen:
+        return _buildListenPreview(context);
+      case PreviewType.browse:
+        return _buildBrowsePreview(context);
+      case PreviewType.library:
+        return _buildLibraryPreview(context);
+    }
+  }
+
+  Widget _buildListenPreview(BuildContext context) {
+    return ListView.separated(
+      itemCount: 10,
+      separatorBuilder: (context, index) => settings.showListDividers
+          ? const Divider(height: 1)
+          : const SizedBox.shrink(),
+      itemBuilder: (context, index) {
+        return Container(
+          height: settings.listItemHeight,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.grey[200],
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Icon(Icons.music_note),
               ),
-            ),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '预览歌曲 ${index + 1}',
+                      style: const TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    Text(
+                      '预览艺术家',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  Widget _buildBrowsePreview(BuildContext context) {
+    return CustomScrollView(
+      slivers: [
+        const SliverAppBar(
+          title: Text('浏览'),
+          floating: true,
+        ),
+        SliverPadding(
+          padding: const EdgeInsets.all(16),
+          sliver: SliverGrid(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 16,
+              crossAxisSpacing: 16,
+              childAspectRatio: 1.5,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.primaries[index % Colors.primaries.length][100],
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Stack(
+                    children: [
+                      Positioned(
+                        left: 16,
+                        bottom: 16,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              index.isEven ? Icons.album : Icons.person,
+                              size: 32,
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              index.isEven ? '专辑' : '艺术家',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              childCount: 4,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLibraryPreview(BuildContext context) {
+    return DefaultTabController(
+      length: 3,
+      child: Column(
+        children: [
+          const TabBar(
+            tabs: [
+              Tab(text: '歌曲'),
+              Tab(text: '专辑'),
+              Tab(text: '艺术家'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: [
+                _buildListenPreview(context),
+                GridView.builder(
+                  padding: const EdgeInsets.all(16),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    childAspectRatio: 0.8,
+                    mainAxisSpacing: 16,
+                    crossAxisSpacing: 16,
+                  ),
+                  itemCount: 6,
+                  itemBuilder: (context, index) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        AspectRatio(
+                          aspectRatio: 1,
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: Colors.grey[200],
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(Icons.album, size: 48),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '预览专辑 ${index + 1}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          '预览艺术家',
+                          style: TextStyle(
+                            color: Colors.grey[600],
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
+                ListView.builder(
+                  itemCount: 10,
+                  itemBuilder: (context, index) {
+                    return ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.grey[200],
+                        child: const Icon(Icons.person),
+                      ),
+                      title: Text('预览艺术家 ${index + 1}'),
+                      subtitle: const Text('10 张专辑'),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ColorPicker extends StatelessWidget {
+  final String label;
+  final Color value;
+  final ValueChanged<Color> onChanged;
+
+  const _ColorPicker({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(label),
+      trailing: GestureDetector(
+        onTap: () {
+          showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(label),
+              content: SingleChildScrollView(
+                child: MaterialPicker(
+                  pickerColor: value,
+                  onColorChanged: (color) {
+                    onChanged(color);
+                    Navigator.pop(context);
+                  },
+                  enableLabel: true,
+                ),
+              ),
+            ),
+          );
+        },
+        child: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: value,
+            shape: BoxShape.circle,
+            border: Border.all(
+              color: Colors.grey[300]!,
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: value.withOpacity(0.4),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SliderSetting extends StatefulWidget {
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final double defaultValue;
+  final ValueChanged<double> onChanged;
+
+  const _SliderSetting({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.defaultValue,
+    required this.onChanged,
+  });
+
+  @override
+  State<_SliderSetting> createState() => _SliderSettingState();
+}
+
+class _SliderSettingState extends State<_SliderSetting> {
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(covariant _SliderSetting oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) {
+      _controller.clear();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Row(
+        children: [
+          Expanded(child: Text(widget.label)),
+          IconButton(
+            icon: const Icon(Icons.restore, size: 20),
+            onPressed: () => widget.onChanged(widget.defaultValue),
+            tooltip: '恢复默认',
+          ),
+        ],
+      ),
+      subtitle: Slider(
+        value: widget.value,
+        min: widget.min,
+        max: widget.max,
+        onChanged: widget.onChanged,
+      ),
+      trailing: SizedBox(
+        width: 60,
+        child: TextField(
+          controller: _controller,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          textAlign: TextAlign.center,
+          decoration: InputDecoration(
+            isDense: true,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            filled: true,
+            fillColor: Colors.grey[200],
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(4),
+              borderSide: BorderSide.none,
+            ),
+            hintText: widget.value.toStringAsFixed(1),
+            hintStyle: TextStyle(
+              color: Colors.grey[600],
+              fontSize: 14,
+            ),
+          ),
+          onSubmitted: (text) {
+            if (text.isEmpty) {
+              widget.onChanged(widget.defaultValue);
+              return;
+            }
+            final newValue = double.tryParse(text);
+            if (newValue != null && newValue >= widget.min && newValue <= widget.max) {
+              widget.onChanged(newValue);
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('请输入 ${widget.min.toStringAsFixed(1)} 到 ${widget.max.toStringAsFixed(1)} 之间的数值'),
+                  duration: const Duration(seconds: 2),
+                ),
+              );
+            }
+            _controller.clear();
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _SwitchSetting extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _SwitchSetting({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SwitchListTile(
+      title: Text(label),
+      value: value,
+      onChanged: onChanged,
     );
   }
 } 
