@@ -38,7 +38,7 @@ class CacheService {
       final prefs = await SharedPreferences.getInstance();
       final cacheVersion = prefs.getInt(_cacheVersionKey) ?? 0;
       if (cacheVersion < _currentVersion) {
-        await _clearCache();
+        await clearCache();
         await prefs.setInt(_cacheVersionKey, _currentVersion);
       }
 
@@ -147,7 +147,7 @@ class CacheService {
   }
 
   // 清除所有缓存
-  Future<void> _clearCache() async {
+  Future<void> clearCache() async {
     if (!_initialized) await _init();
     try {
       if (await _cacheDir.exists()) {

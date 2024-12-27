@@ -87,15 +87,15 @@ class PlayerService {
   }
 
   // 播放歌曲
-  Future<void> play(Song song) async {
+  Future<void> play(Song song, {int? maxBitRate}) async {
     if (!_initialized) await _init();
     if (_currentMusicService == null) {
       throw StateError('未设置音乐服务');
     }
     try {
-      final url = await _currentMusicService!.getStreamUrl(song.id);
+      final url = await _currentMusicService!.getStreamUrl(song.id, maxBitRate: maxBitRate);
       final coverArtUrl = _currentMusicService!.getCoverArtUrl(song.coverArtId);
-      
+
       await _audioHandler?.playMediaItem(
         MediaItem(
           id: url,
@@ -112,6 +112,7 @@ class PlayerService {
       );
     } catch (e) {
       print('播放失败: $e');
+      rethrow;
     }
   }
 

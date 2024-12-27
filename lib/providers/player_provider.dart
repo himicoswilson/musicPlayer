@@ -8,6 +8,8 @@ import '../services/local_music_service.dart';
 import '../services/lyric_service.dart';
 import '../models/local_song.dart';
 import '../services/music_service.dart';
+import 'package:provider/provider.dart';
+import '../providers/settings_provider.dart';
 
 enum PlayMode {
   sequence, // 顺序播放
@@ -21,6 +23,7 @@ class PlayerProvider extends ChangeNotifier {
   final LocalMusicService _localMusicService = LocalMusicService();
   final NavidromeService _navidromeService = NavidromeService();
   final LyricService _lyricService = LyricService();
+  final SettingsProvider _settingsProvider;
   MusicService? _currentMusicService;
   
   // 播放模式
@@ -44,7 +47,7 @@ class PlayerProvider extends ChangeNotifier {
   bool get isLoadingLyric => _isLoadingLyric;
   final Map<String, Lyric> _lyricCache = {};
   
-  PlayerProvider() {
+  PlayerProvider(this._settingsProvider) {
     // 设置播放状态监听回调
     _playerService.onPositionChanged = (position) {
       updatePosition(position);
@@ -92,8 +95,6 @@ class PlayerProvider extends ChangeNotifier {
           final songs = await _localMusicService.getNewestSongs();
           _playlist.addAll(songs);
         } else {
-          // 如果是在线音乐，可以根据需要获取相应的歌曲列表
-          // 这里暂时只添加当前歌曲
           _playlist.add(song);
         }
       }
@@ -106,8 +107,11 @@ class PlayerProvider extends ChangeNotifier {
       // 立即通知界面更新
       notifyListeners();
       
-      // 然后开始播放
-      await _playerService.play(song);
+      // 获取音质设置
+      final maxBitRate = _settingsProvider.autoQuality ? 0 : _settingsProvider.maxBitRate;
+      
+      // 然后开始播放，传入音质参数
+      await _playerService.play(song, maxBitRate: maxBitRate);
       _isPlaying = true;
       notifyListeners();
     } catch (e) {

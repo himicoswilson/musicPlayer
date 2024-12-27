@@ -63,6 +63,33 @@ class SettingsProvider extends ChangeNotifier {
   double get lyricActiveSize => _lyricActiveSize;
   bool get defaultShowLyrics => _showLyrics;
 
+  int _maxBitRate = 0; // 0 表示不限制
+  bool _autoQuality = true; // 是否自动根据网络调整音质
+  
+  int get maxBitRate => _maxBitRate;
+  bool get autoQuality => _autoQuality;
+  
+  // 预设的音质选项（kbps）
+  static const List<int> bitRateOptions = [0, 96, 128, 192, 320];
+  
+  // 音质描述
+  static String getBitRateDescription(int bitRate) {
+    switch (bitRate) {
+      case 0:
+        return '原始音质';
+      case 96:
+        return '低音质 (96kbps)';
+      case 128:
+        return '标准音质 (128kbps)';
+      case 192:
+        return '高音质 (192kbps)';
+      case 320:
+        return '超高音质 (320kbps)';
+      default:
+        return '${bitRate}kbps';
+    }
+  }
+
   // 加载设置
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -94,6 +121,9 @@ class SettingsProvider extends ChangeNotifier {
     _lyricNormalSize = prefs.getDouble(_kLyricNormalSizeKey) ?? _defaultLyricNormalSize;
     _lyricActiveSize = prefs.getDouble(_kLyricActiveSizeKey) ?? _defaultLyricActiveSize;
     _showLyrics = prefs.getBool(_kDefaultShowLyricsKey) ?? _defaultShowLyrics;
+
+    _maxBitRate = prefs.getInt('maxBitRate') ?? 0;
+    _autoQuality = prefs.getBool('autoQuality') ?? true;
 
     notifyListeners();
   }
@@ -246,5 +276,23 @@ class SettingsProvider extends ChangeNotifier {
     }
 
     notifyListeners();
+  }
+
+  Future<void> setMaxBitRate(int bitRate) async {
+    if (_maxBitRate != bitRate) {
+      _maxBitRate = bitRate;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setInt('maxBitRate', bitRate);
+      notifyListeners();
+    }
+  }
+
+  Future<void> setAutoQuality(bool enabled) async {
+    if (_autoQuality != enabled) {
+      _autoQuality = enabled;
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('autoQuality', enabled);
+      notifyListeners();
+    }
   }
 } 

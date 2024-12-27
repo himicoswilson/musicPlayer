@@ -32,7 +32,9 @@ void main() async {
           Provider.value(value: navidromeService),
           ChangeNotifierProvider.value(value: authProvider),
           ChangeNotifierProvider.value(value: settingsProvider),
-          ChangeNotifierProvider(create: (_) => PlayerProvider()),
+          ChangeNotifierProvider(
+            create: (context) => PlayerProvider(context.read<SettingsProvider>()),
+          ),
           ChangeNotifierProvider(
             create: (context) => LocalLibraryProvider(
               context.read<PlayerProvider>(),
@@ -63,7 +65,7 @@ class MyApp extends StatelessWidget {
       useInheritedMediaQuery: true,
       locale: DevicePreview.locale(context),
       builder: DevicePreview.appBuilder,
-      title: '音乐播放器',
+      title: 'Music Player',
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
           seedColor: settings.primaryColor,

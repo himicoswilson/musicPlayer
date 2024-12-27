@@ -9,6 +9,7 @@ import '../widgets/mini_player.dart';
 import '../pages/home_page.dart';
 import '../providers/cache_provider.dart';
 import '../pages/cache_management_page.dart';
+import '../pages/audio_quality_settings_page.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({Key? key}) : super(key: key);
@@ -77,12 +78,6 @@ class SettingsPage extends StatelessWidget {
                               return const Text('计算中...');
                             },
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '缓存位置: ${provider.cachePath}',
-                            style: Theme.of(context).textTheme.bodySmall,
-                            overflow: TextOverflow.ellipsis,
-                          ),
                         ],
                       ),
                     );
@@ -97,6 +92,30 @@ class SettingsPage extends StatelessWidget {
                     context,
                     MaterialPageRoute(
                       builder: (context) => const CacheManagementPage(),
+                    ),
+                  );
+                },
+              ),
+              const Divider(),
+              // 音质设置
+              ListTile(
+                leading: const Icon(Icons.high_quality),
+                title: const Text('音质设置'),
+                subtitle: Consumer<SettingsProvider>(
+                  builder: (context, settings, child) {
+                    return Text(
+                      settings.autoQuality
+                          ? '自动调整音质'
+                          : '固定音质：${SettingsProvider.getBitRateDescription(settings.maxBitRate)}',
+                    );
+                  },
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const AudioQualitySettingsPage(),
                     ),
                   );
                 },
