@@ -24,21 +24,23 @@ class PlayerPage extends StatefulWidget {
 
 class _PlayerPageState extends State<PlayerPage> {
   late Song _currentSong;
-  bool _showLyrics = true;  // 控制是否显示歌词
+  late bool _showLyrics;  // 修改为late
 
   @override
   void initState() {
     super.initState();
     _currentSong = widget.song;
+    // 从设置中获取默认显示模式
+    _showLyrics = Provider.of<SettingsProvider>(context, listen: false).defaultShowLyrics;
   }
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<PlayerProvider>(
-      builder: (context, provider, child) {
+    return Consumer2<PlayerProvider, SettingsProvider>(
+      builder: (context, playerProvider, settingsProvider, child) {
         // 更新当前歌曲
-        if (provider.currentSong != null && provider.currentSong != _currentSong) {
-          _currentSong = provider.currentSong!;
+        if (playerProvider.currentSong != null && playerProvider.currentSong != _currentSong) {
+          _currentSong = playerProvider.currentSong!;
         }
 
         return Scaffold(
@@ -83,11 +85,11 @@ class _PlayerPageState extends State<PlayerPage> {
               // 专辑封面或歌词显示区域
               Expanded(
                 child: _showLyrics
-                    ? _buildLyricView(provider)
-                    : _buildCoverView(provider),
+                    ? _buildLyricView(playerProvider, settingsProvider)
+                    : _buildCoverView(playerProvider),
               ),
               // 播放控制区域
-              _buildControlPanel(provider),
+              _buildControlPanel(playerProvider),
             ],
           ),
         );
@@ -95,7 +97,7 @@ class _PlayerPageState extends State<PlayerPage> {
     );
   }
 
-  Widget _buildLyricView(PlayerProvider provider) {
+  Widget _buildLyricView(PlayerProvider provider, SettingsProvider settings) {
     if (provider.isLoadingLyric) {
       return const Center(
         child: CircularProgressIndicator(),
@@ -106,17 +108,20 @@ class _PlayerPageState extends State<PlayerPage> {
       lyric: provider.currentLyric,
       position: provider.position ?? Duration.zero,
       lineHeight: 32.0,
-      normalStyle: const TextStyle(
-        color: Colors.grey,
-        fontSize: 16,
+      normalStyle: TextStyle(
+        color: settings.lyricNormalColor,
+        fontSize: settings.lyricNormalSize,
         height: 1.5,
       ),
-      activeStyle: const TextStyle(
-        color: Colors.white,
-        fontSize: 18,
+      activeStyle: TextStyle(
+        color: settings.lyricActiveColor,
+        fontSize: settings.lyricActiveSize,
         height: 1.5,
         fontWeight: FontWeight.bold,
       ),
+      onPositionChanged: (position) {
+        provider.seek(position);
+      },
     );
   }
 

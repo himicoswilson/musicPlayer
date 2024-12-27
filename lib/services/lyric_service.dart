@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import '../models/lyric.dart';
 
 class LyricService {
@@ -8,50 +9,51 @@ class LyricService {
   LyricService._internal();
 
   Future<Lyric?> parseLyric(String lrcContent) async {
-    if (lrcContent.isEmpty) return null;
-
-    final List<LyricLine> lines = [];
-    String? title, artist, album, by;
-    Duration? offset;
-
-    // 按行分割歌词
-    final List<String> rawLines = LineSplitter.split(lrcContent).toList();
-
-    for (String line in rawLines) {
-      // 解析元数据
-      if (line.startsWith('[ti:')) {
-        title = _parseMetadata(line, 'ti');
-      } else if (line.startsWith('[ar:')) {
-        artist = _parseMetadata(line, 'ar');
-      } else if (line.startsWith('[al:')) {
-        album = _parseMetadata(line, 'al');
-      } else if (line.startsWith('[by:')) {
-        by = _parseMetadata(line, 'by');
-      } else if (line.startsWith('[offset:')) {
-        final offsetStr = _parseMetadata(line, 'offset');
-        if (offsetStr != null) {
-          offset = Duration(milliseconds: int.tryParse(offsetStr) ?? 0);
-        }
-      } else if (line.startsWith('[')) {
-        // 解析带时间戳的歌词行
-        final lyricLine = _parseLyricLine(line);
-        if (lyricLine != null) {
-          lines.add(lyricLine);
+    try {
+      final lines = <LyricLine>[];
+      final lrcLines = lrcContent.split('\n');
+      
+      for (final line in lrcLines) {
+        if (line.trim().isEmpty) continue;
+        
+        // 解析时间标签 [mm:ss.xx] 或 [mm:ss:xx]
+        final regex = RegExp(r'\[(\d{2}):(\d{2})[\.:]\d{2,3}\]');
+        final matches = regex.allMatches(line);
+        
+        if (matches.isEmpty) continue;
+        
+        // 获取歌词文本（去除所有时间标签）
+        String text = line.replaceAll(RegExp(r'\[\d{2}:\d{2}[\.:]\d{2,3}\]'), '').trim();
+        if (text.isEmpty) continue;
+        
+        // 为每个时间标签创建一个歌词行
+        for (final match in matches) {
+          final minutes = int.parse(match.group(1)!);
+          final seconds = int.parse(match.group(2)!);
+          
+          final timestamp = Duration(
+            minutes: minutes,
+            seconds: seconds,
+          );
+          
+          lines.add(LyricLine(
+            timestamp: timestamp,
+            text: text,
+          ));
         }
       }
+      
+      // 按时间戳排序
+      lines.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      
+      // 如果没有解析出任何歌词行，返回null
+      if (lines.isEmpty) return null;
+      
+      return Lyric(lines);
+    } catch (e) {
+      debugPrint('解析歌词失败: $e');
+      return null;
     }
-
-    // 按时间戳排序
-    lines.sort((a, b) => a.timestamp.compareTo(b.timestamp));
-
-    return Lyric(
-      lines: lines,
-      title: title,
-      artist: artist,
-      album: album,
-      by: by,
-      offset: offset,
-    );
   }
 
   String? _parseMetadata(String line, String tag) {
@@ -92,7 +94,7 @@ class LyricService {
         return utf8.decode(response.bodyBytes);
       }
     } catch (e) {
-      print('Error fetching lyric: $e');
+      debugPrint('获取歌词失败: $e');
     }
     return null;
   }
