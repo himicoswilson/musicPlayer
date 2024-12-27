@@ -332,10 +332,10 @@ class _MusicSourceSettingsPageState extends State<MusicSourceSettingsPage> {
               const Divider(),
               ListTile(
                 title: const Text('Navidrome 设置'),
-                subtitle: Text(auth.hasNavidromeConfig ? '已配置 Navidrome 服��' : '未配置 Navidrome 服务'),
+                subtitle: Text(auth.hasNavidromeConfig ? '已配置 Navidrome 服务' : '未配置 Navidrome 服务'),
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
-          children: [
+                  children: [
                     if (auth.hasNavidromeConfig)
                       IconButton(
                         icon: const Icon(Icons.refresh),
@@ -419,15 +419,15 @@ Future<Color?> showColorPicker({
           ),
         ),
         actions: <Widget>[
-          TextButton(
-            child: const Text('取消'),
+                    TextButton(
+                      child: const Text('取消'),
             onPressed: () {
               Navigator.of(context).pop();
             },
-          ),
-          TextButton(
+                    ),
+                    TextButton(
             child: const Text('确定'),
-            onPressed: () {
+                      onPressed: () {
               Navigator.of(context).pop(selectedColor);
             },
           ),
@@ -442,8 +442,8 @@ class _PlayerSettingsTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<SettingsProvider>(
       builder: (context, settings, child) {
-        return ListView(
-          children: [
+    return ListView(
+      children: [
             // 封面设置
             ListTile(
               title: const Text('封面大小比例'),
@@ -458,9 +458,9 @@ class _PlayerSettingsTab extends StatelessWidget {
             ),
             SwitchListTile(
               title: const Text('显示封面阴影'),
-              value: settings.showCoverArtShadow,
-              onChanged: settings.toggleCoverArtShadow,
-            ),
+                value: settings.showCoverArtShadow,
+                onChanged: settings.toggleCoverArtShadow,
+              ),
             const Divider(),
             
             // 歌词设置
@@ -477,9 +477,9 @@ class _PlayerSettingsTab extends StatelessWidget {
               trailing: Container(
                 width: 24,
                 height: 24,
-                decoration: BoxDecoration(
+                        decoration: BoxDecoration(
                   color: settings.lyricNormalColor,
-                  shape: BoxShape.circle,
+                                shape: BoxShape.circle,
                 ),
               ),
               onTap: () async {
@@ -536,9 +536,9 @@ class _PlayerSettingsTab extends StatelessWidget {
                 onChanged: (value) {
                   settings.updateLyricSettings(activeSize: value);
                 },
-              ),
             ),
-          ],
+          ),
+        ],
         );
       },
     );
@@ -551,7 +551,7 @@ class _ListStyleSettingsTab extends StatelessWidget {
     return Consumer<SettingsProvider>(
       builder: (context, settings, child) {
         return ListView(
-          children: [
+        children: [
             SwitchListTile(
               title: const Text('显示分割线'),
               value: settings.showListDividers,
@@ -559,7 +559,7 @@ class _ListStyleSettingsTab extends StatelessWidget {
             ),
             ListTile(
               title: const Text('列表项高度'),
-              subtitle: Slider(
+      subtitle: Slider(
                 value: settings.listItemHeight,
                 min: 48,
                 max: 80,

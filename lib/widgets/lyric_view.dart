@@ -8,6 +8,7 @@ class LyricView extends StatefulWidget {
   final TextStyle normalStyle;
   final TextStyle activeStyle;
   final Function(Duration)? onPositionChanged;
+  final CrossAxisAlignment alignment;
 
   const LyricView({
     Key? key,
@@ -17,6 +18,7 @@ class LyricView extends StatefulWidget {
     required this.normalStyle,
     required this.activeStyle,
     this.onPositionChanged,
+    this.alignment = CrossAxisAlignment.center,
   }) : super(key: key);
 
   @override

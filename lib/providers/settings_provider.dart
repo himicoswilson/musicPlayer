@@ -46,7 +46,7 @@ class SettingsProvider extends ChangeNotifier {
 
   // 默认值
   static const Color _defaultLyricNormalColor = Colors.grey;
-  static const Color _defaultLyricActiveColor = Colors.white;
+  static const Color _defaultLyricActiveColor = Colors.deepPurple;
   static const double _defaultLyricNormalSize = 16.0;
   static const double _defaultLyricActiveSize = 18.0;
   static const bool _defaultShowLyrics = true;
