@@ -25,7 +25,7 @@ class PlayerPage extends StatefulWidget {
 class _PlayerPageState extends State<PlayerPage> {
   late Song _currentSong;
   late bool _showLyrics;
-
+  
   @override
   void initState() {
     super.initState();
@@ -67,9 +67,14 @@ class _PlayerPageState extends State<PlayerPage> {
               ],
             ),
             actions: [
+              // 添加歌词显示切换按钮
               IconButton(
-                icon: const Icon(Icons.more_vert),
-                onPressed: () => _showMoreOptions(context),
+                icon: Icon(_showLyrics ? Icons.subject : Icons.image),
+                onPressed: () {
+                  setState(() {
+                    _showLyrics = !_showLyrics;
+                  });
+                },
               ),
             ],
             centerTitle: true,
@@ -272,18 +277,6 @@ class _PlayerPageState extends State<PlayerPage> {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                Consumer<PlaylistProvider>(
-                  builder: (context, provider, child) {
-                    final isStarred = provider.isSongStarred(_currentSong.id);
-                    return IconButton(
-                      icon: Icon(
-                        isStarred ? Icons.favorite : Icons.favorite_border
-                      ),
-                      iconSize: 24,
-                      onPressed: () => provider.toggleStarSong(_currentSong.id),
-                    );
-                  },
-                ),
                 IconButton(
                   icon: const Icon(Icons.skip_previous_rounded),
                   iconSize: 36,
@@ -309,11 +302,6 @@ class _PlayerPageState extends State<PlayerPage> {
                   icon: const Icon(Icons.skip_next_rounded),
                   iconSize: 36,
                   onPressed: () => provider.playNext(),
-                ),
-                IconButton(
-                  icon: _getPlayModeIcon(provider.playMode),
-                  iconSize: 24,
-                  onPressed: () => provider.togglePlayMode(),
                 ),
               ],
             ),
