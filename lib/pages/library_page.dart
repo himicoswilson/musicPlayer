@@ -70,11 +70,117 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
     playerProvider.playSong(song);
   }
 
+  void _showSongOptions(BuildContext context, Song song) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => Container(
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: const BorderRadius.vertical(
+            top: Radius.circular(16),
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 32,
+              height: 4,
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.playlist_add),
+              title: const Text('添加到播放列表'),
+              onTap: () {
+                context.read<PlayerProvider>().addSongsToPlaylist([song]);
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('已添加到播放列表'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              },
+            ),
+            Consumer<PlaylistProvider>(
+              builder: (context, provider, child) {
+                final isStarred = provider.isSongStarred(song.id);
+                return ListTile(
+                  leading: Icon(
+                    isStarred ? Icons.favorite : Icons.favorite_border,
+                    color: isStarred ? Theme.of(context).colorScheme.primary : null,
+                  ),
+                  title: Text(isStarred ? '取消收藏' : '收藏'),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    await provider.toggleStarSong(song.id);
+                  },
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.playlist_add),
+              title: const Text('添加到歌单'),
+              onTap: () {
+                Navigator.pop(context);
+                _showAddToPlaylistDialog(context, song);
+              },
+            ),
+            Consumer<CacheProvider>(
+              builder: (context, provider, child) {
+                final isCached = provider.isCached(song.id);
+                final isDownloading = provider.isDownloading(song.id);
+                
+                if (isDownloading) {
+                  return ListTile(
+                    leading: SizedBox(
+                      width: 24,
+                      height: 24,
+                      child: CircularProgressIndicator(
+                        value: provider.getDownloadProgress(song.id),
+                        strokeWidth: 2,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                    title: const Text('正在下载'),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => provider.cancelDownload(song.id),
+                    ),
+                  );
+                }
+                
+                return ListTile(
+                  leading: Icon(isCached ? Icons.delete : Icons.download),
+                  title: Text(isCached ? '删除缓存' : '下载'),
+                  onTap: () {
+                    if (isCached) {
+                      provider.removeCachedSong(song.id);
+                    } else {
+                      provider.cacheSong(song);
+                    }
+                    Navigator.pop(context);
+                  },
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthProvider>();
     final showNavidromeContent = auth.isNavidromeLoggedIn;
     final showLocalContent = auth.isLocalMode;
+    final settings = context.watch<SettingsProvider>();
 
     // 计算需要显示的标签页数量
     int tabCount = 0;
@@ -86,14 +192,27 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
       child: Scaffold(
         appBar: AppBar(
           title: const Text('音乐库'),
-          bottom: TabBar(
+          elevation: 0,
+          backgroundColor: Theme.of(context).colorScheme.surface,
+          bottom: PreferredSize(
+            preferredSize: Size.fromHeight(settings.tabBarHeight),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 16),
+              child: TabBar(
             isScrollable: true,
             tabAlignment: TabAlignment.start,
             indicatorSize: TabBarIndicatorSize.tab,
             labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+                dividerColor: Colors.transparent,
+                indicator: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                ),
             tabs: [
               if (showLocalContent)
-                const Tab(
+                    SizedBox(
+                      height: settings.tabBarIndicatorHeight,
+                      child: const Tab(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -101,10 +220,13 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
                       SizedBox(width: 8),
                       Text('本地音乐'),
                     ],
+                        ),
                   ),
                 ),
               if (showNavidromeContent) ...[
-                const Tab(
+                    SizedBox(
+                      height: settings.tabBarIndicatorHeight,
+                      child: const Tab(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -114,7 +236,10 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
                     ],
                   ),
                 ),
-                const Tab(
+                    ),
+                    SizedBox(
+                      height: settings.tabBarIndicatorHeight,
+                      child: const Tab(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -124,7 +249,10 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
                     ],
                   ),
                 ),
-                const Tab(
+                    ),
+                    SizedBox(
+                      height: settings.tabBarIndicatorHeight,
+                      child: const Tab(
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -132,10 +260,13 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
                       SizedBox(width: 8),
                       Text('在线艺术家'),
                     ],
+                        ),
                   ),
                 ),
               ],
             ],
+              ),
+            ),
           ),
         ),
         body: Column(
@@ -164,11 +295,39 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
     return Consumer2<LocalLibraryProvider, SettingsProvider>(
       builder: (context, provider, settings, child) {
         if (provider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          );
         }
 
         if (provider.error != null) {
-          return Center(child: Text(provider.error!));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  provider.error!,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('重试'),
+                  onPressed: () => provider.loadSongs(),
+                ),
+              ],
+            ),
+          );
         }
 
         if (provider.songs.isEmpty) {
@@ -179,21 +338,22 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
                 Icon(
                   Icons.music_note,
                   size: 64,
-                  color: Colors.grey[400],
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
                 ),
                 const SizedBox(height: 16),
                 Text(
                   '没有找到本地音乐',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                   ),
                 ),
-                const SizedBox(height: 8),
-                TextButton(
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  icon: const Icon(Icons.settings),
+                  label: const Text('去设置音乐文件夹'),
                   onPressed: () {
                     Navigator.pushNamed(context, '/settings');
                   },
-                  child: const Text('去设置音乐文件夹'),
                 ),
               ],
             ),
@@ -206,122 +366,173 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Text(
+                  Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Center(
+                      child: Text(
                     '${provider.songs.length} 首歌曲',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
                   ),
                   const Spacer(),
-                  TextButton.icon(
-                    icon: const Icon(Icons.play_circle_filled),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final screenWidth = MediaQuery.of(context).size.width;
+                      final isNarrow = screenWidth < 320;
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            height: 40,
+                            child: isNarrow
+                                ? IconButton.filled(
+                                    icon: const Icon(Icons.play_circle),
+                                    onPressed: () {
+                                      Provider.of<LocalLibraryProvider>(context, listen: false).playAll();
+                                    },
+                                  )
+                                : FilledButton.icon(
+                                    icon: const Icon(Icons.play_circle),
                     label: const Text('播放全部'),
                     onPressed: () {
                       Provider.of<LocalLibraryProvider>(context, listen: false).playAll();
                     },
+                                  ),
                   ),
                   const SizedBox(width: 8),
-                  TextButton.icon(
+                          SizedBox(
+                            height: 40,
+                            child: isNarrow
+                                ? IconButton.filledTonal(
+                                    icon: const Icon(Icons.shuffle),
+                                    onPressed: () {
+                                      Provider.of<LocalLibraryProvider>(context, listen: false).playAll(true);
+                                    },
+                                  )
+                                : FilledButton.tonalIcon(
                     icon: const Icon(Icons.shuffle),
                     label: const Text('随机播放'),
                     onPressed: () {
                       Provider.of<LocalLibraryProvider>(context, listen: false).playAll(true);
+                    },
+                                  ),
+                  ),
+                ],
+                      );
                     },
                   ),
                 ],
               ),
             ),
             Expanded(
-              child: ListView.separated(
+              child: ListView.builder(
                 itemCount: provider.songs.length,
-                separatorBuilder: (context, index) => settings.showListDividers
-                    ? const Divider(height: 1)
-                    : const SizedBox.shrink(),
                 itemBuilder: (context, index) {
                   final song = provider.songs[index];
                   final isPlaying = provider.currentSong?.id == song.id;
                   
-                  return Container(
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
                     height: settings.listItemHeight,
+                    decoration: BoxDecoration(
+                      color: isPlaying
+                          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                          : Theme.of(context).colorScheme.primary.withOpacity(1),
+                      border: settings.showListDividers
+                          ? Border(
+                              bottom: BorderSide(
+                                color: Theme.of(context).dividerColor.withOpacity(0.1),
+                                width: 1,
+                              ),
+                            )
+                          : null,
+                    ),
                     child: ListTile(
-                      leading: song.coverData != null
+                      leading: Hero(
+                        tag: 'cover-${song.id}',
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Theme.of(context).shadowColor.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: song.coverData != null
                           ? Image.memory(
                               song.coverData!,
-                              width: 40,
-                              height: 40,
+                                    width: 48,
+                                    height: 48,
                               fit: BoxFit.cover,
                             )
                           : Container(
-                              width: 40,
-                              height: 40,
-                              color: Colors.grey[200],
-                              child: const Icon(Icons.music_note, size: 24),
+                                    color: Theme.of(context).colorScheme.surfaceVariant,
+                                    child: Icon(
+                                      Icons.music_note,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                          ),
+                        ),
                             ),
                       title: Text(
                         song.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: isPlaying ? Theme.of(context).primaryColor : null,
+                          color: isPlaying
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurface,
                           fontWeight: isPlaying ? FontWeight.bold : null,
                         ),
-                      ),
-                      subtitle: Text(
-                        song.artist,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: IconButton(
-                        icon: const Icon(Icons.more_vert),
-                        onPressed: () {
-                          showModalBottomSheet(
-                            context: context,
-                            builder: (context) => Column(
+                      subtitle: Text(
+                        song.artist ?? '未知歌手',
+                        style: TextStyle(
+                          color: isPlaying
+                              ? Theme.of(context).colorScheme.primary.withOpacity(0.7)
+                              : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                ListTile(
-                                  leading: const Icon(Icons.playlist_add),
-                                  title: const Text('添加到播放列表'),
-                                  onTap: () {
-                                    Provider.of<PlayerProvider>(context, listen: false)
-                                        .addSongsToPlaylist([song]);
-                                    Navigator.pop(context);
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('已添加到播放列表'),
-                                        duration: Duration(seconds: 1),
-                                      ),
-                                    );
-                                  },
-                                ),
-                                Consumer<PlaylistProvider>(
-                                  builder: (context, provider, child) {
-                                    final isStarred = provider.isSongStarred(song.id);
-                                    return ListTile(
-                                      leading: Icon(
-                                        isStarred ? Icons.favorite : Icons.favorite_border
-                                      ),
-                                      title: Text(isStarred ? '取消收藏' : '收藏'),
-                                      onTap: () async {
-                                        Navigator.pop(context);
-                                        await provider.toggleStarSong(song.id);
-                                      },
-                                    );
-                                  },
-                                ),
-                                ListTile(
-                                  leading: const Icon(Icons.playlist_add),
-                                  title: const Text('添加到歌单'),
-                                  onTap: () {
-                                    Navigator.pop(context);
-                                    _showAddToPlaylistDialog(context, song);
-                                  },
-                                ),
-                              ],
+                          if (isPlaying)
+                            Icon(
+                              Icons.equalizer,
+                              color: Theme.of(context).colorScheme.primary,
                             ),
-                          );
-                        },
+                          IconButton(
+                            icon: const Icon(Icons.more_vert),
+                            onPressed: () => _showSongOptions(context, song),
+                          ),
+                        ],
                       ),
-                      onTap: () {
-                        provider.playSong(song);
+                                  onTap: () {
+                        _playSong(context, song);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PlayerPage(song: song),
+                          ),
+                        );
                       },
                     ),
                   );
@@ -376,44 +587,313 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
   }
 
   Widget _buildAlbumsTab() {
-    return Consumer<LibraryProvider>(
-      builder: (context, provider, child) {
+    return Consumer2<LibraryProvider, SettingsProvider>(
+      builder: (context, provider, settings, child) {
         if (provider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          );
         }
 
         if (provider.error != null) {
-          return Center(child: Text(provider.error!));
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  provider.error!,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('重试'),
+                  onPressed: () => provider.loadAlbums(),
+                ),
+              ],
+            ),
+          );
         }
 
-        final albums = provider.albums;
-        if (albums.isEmpty) {
-          return const Center(child: Text('没有找到专辑'));
+        if (provider.albums.isEmpty) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.album,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  '没有找到专辑',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
+              ],
+            ),
+          );
         }
 
-        return GridView.builder(
-          padding: const EdgeInsets.all(8),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            childAspectRatio: 0.75,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-          ),
-          itemCount: albums.length,
+        return Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Center(
+                      child: Text(
+                        '${provider.albums.length} 张专辑',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    height: 40,
+                    child: IconButton(
+                      style: IconButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        minimumSize: const Size(40, 40),
+                        padding: EdgeInsets.zero,
+                      ),
+                      icon: Icon(
+                        settings.useGridViewForAlbums ? Icons.view_list : Icons.grid_view,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
+                      onPressed: () => settings.toggleGridViewForAlbums(!settings.useGridViewForAlbums),
+                      tooltip: settings.useGridViewForAlbums ? '切换到列表视图' : '切换到网格视图',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: settings.useGridViewForAlbums
+                  ? GridView.builder(
+                      padding: EdgeInsets.all(settings.albumGridSpacing),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        childAspectRatio: 0.8,
+                        crossAxisSpacing: settings.albumGridSpacing,
+                        mainAxisSpacing: settings.albumGridSpacing,
+                      ),
+                      itemCount: provider.albums.length,
           itemBuilder: (context, index) {
-            final album = albums[index];
-            return _buildAlbumCard(album);
-          },
+                        final album = provider.albums[index];
+                        return AnimatedContainer(
+                          duration: Duration(
+                            milliseconds: settings.enableListAnimation ? 300 : 0,
+                          ),
+                          child: InkWell(
+                            onTap: () {
+                              Navigator.pushNamed(context, '/album', arguments: album);
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Theme.of(context).colorScheme.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Theme.of(context).shadowColor.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(
+                                    child: Hero(
+                                      tag: 'album-${album.id}',
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: const BorderRadius.vertical(
+                                            top: Radius.circular(12),
+                                          ),
+                                          image: album.coverArtId != null
+                                              ? DecorationImage(
+                                                  image: NetworkImage(
+                                                    Provider.of<NavidromeService>(context, listen: false)
+                                                        .getCoverArtUrl(album.coverArtId!),
+                                                  ),
+                                                  fit: BoxFit.cover,
+                                                )
+                                              : null,
+                                          color: album.coverArtId == null
+                                              ? Theme.of(context).colorScheme.surfaceVariant
+                                              : null,
+                                        ),
+                                        child: album.coverArtId == null
+                                            ? Center(
+                                                child: Icon(
+                                                  Icons.album,
+                                                  size: 48,
+                                                  color: Theme.of(context).colorScheme.primary,
+                                                ),
+                                              )
+                                            : null,
+                                      ),
+                                    ),
+                                  ),
+                                  Padding(
+                                    padding: const EdgeInsets.all(12),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          album.name,
+                                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          album.artistName,
+                                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    )
+                  : ListView.builder(
+                      itemCount: provider.albums.length,
+                      itemBuilder: (context, index) {
+                        final album = provider.albums[index];
+                        return AnimatedContainer(
+                          duration: Duration(
+                            milliseconds: settings.enableListAnimation ? 300 : 0,
+                          ),
+                          height: settings.listItemHeight,
+                          child: ListTile(
+                            leading: Hero(
+                              tag: 'album-${album.id}',
+                              child: Container(
+                                width: 56,
+                                height: 56,
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(8),
+                                  image: album.coverArtId != null
+                                      ? DecorationImage(
+                                          image: NetworkImage(
+                                            Provider.of<NavidromeService>(context, listen: false)
+                                                .getCoverArtUrl(album.coverArtId!),
+                                          ),
+                                          fit: BoxFit.cover,
+                                        )
+                                      : null,
+                                  color: album.coverArtId == null
+                                      ? Theme.of(context).colorScheme.surfaceVariant
+                                      : null,
+                                ),
+                                child: album.coverArtId == null
+                                    ? Icon(
+                                        Icons.album,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      )
+                                    : null,
+                              ),
+                            ),
+                            title: Text(
+                              album.name,
+                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            subtitle: Text(
+                              album.artistName,
+                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                              ),
+                            ),
+                            onTap: () {
+                              Navigator.pushNamed(context, '/album', arguments: album);
+                            },
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
         );
       },
     );
   }
 
   Widget _buildSongsTab(BuildContext context) {
-    return Consumer<LibraryProvider>(
-      builder: (context, provider, child) {
+    return Consumer2<LibraryProvider, SettingsProvider>(
+      builder: (context, provider, settings, child) {
         if (provider.isLoading) {
-          return const Center(child: CircularProgressIndicator());
+          return Center(
+            child: CircularProgressIndicator(
+              color: Theme.of(context).colorScheme.primary,
+            ),
+          );
+        }
+
+        if (provider.error != null) {
+          return Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.error_outline,
+                  size: 64,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  provider.error!,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+                ),
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  icon: const Icon(Icons.refresh),
+                  label: const Text('重试'),
+                  onPressed: () => provider.loadSongs(),
+                ),
+              ],
+            ),
+          );
         }
 
         if (provider.songs.isEmpty) {
@@ -422,15 +902,15 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
-                  Icons.music_note,
+                  Icons.cloud_off,
                   size: 64,
-                  color: Colors.grey[400],
+                  color: Theme.of(context).colorScheme.primary.withOpacity(0.5),
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  '没有找到歌曲',
+                  '没有找到在线歌曲',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: Colors.grey[600],
+                    color: Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
                   ),
                 ),
               ],
@@ -438,185 +918,192 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
           );
         }
 
-        final settings = Provider.of<SettingsProvider>(context);
-
         return Column(
           children: [
             Container(
               padding: const EdgeInsets.all(16),
               child: Row(
                 children: [
-                  Text(
+                  Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Center(
+                      child: Text(
                     '${provider.songs.length} 首歌曲',
-                    style: Theme.of(context).textTheme.bodyMedium,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
                   ),
                   const Spacer(),
-                  TextButton.icon(
-                    icon: const Icon(Icons.play_circle_filled),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final screenWidth = MediaQuery.of(context).size.width;
+                      final isNarrow = screenWidth < 768;
+                      return Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox(
+                            height: 40,
+                            child: isNarrow
+                                ? IconButton.filledTonal(
+                                    icon: const Icon(Icons.play_arrow_rounded),
+                                    onPressed: () {
+                                      context.read<PlayerProvider>().playAll(provider.songs);
+                                    },
+                                  )
+                                : FilledButton.tonalIcon(
+                                    icon: const Icon(Icons.play_arrow_rounded),
                     label: const Text('播放全部'),
                     onPressed: () {
-                      Provider.of<PlayerProvider>(context, listen: false)
-                          .playAll(provider.songs);
+                                      context.read<PlayerProvider>().playAll(provider.songs);
                     },
+                                  ),
                   ),
                   const SizedBox(width: 8),
-                  TextButton.icon(
+                          SizedBox(
+                            height: 40,
+                            child: isNarrow
+                                ? IconButton.filledTonal(
+                                    icon: const Icon(Icons.shuffle),
+                                    onPressed: () {
+                                      context.read<PlayerProvider>().playAll(provider.songs, shuffle: true);
+                                    },
+                                  )
+                                : FilledButton.tonalIcon(
                     icon: const Icon(Icons.shuffle),
                     label: const Text('随机播放'),
                     onPressed: () {
-                      Provider.of<PlayerProvider>(context, listen: false)
-                          .playAll(provider.songs, shuffle: true);
+                                      context.read<PlayerProvider>().playAll(provider.songs, shuffle: true);
+                    },
+                                  ),
+                  ),
+                ],
+                      );
                     },
                   ),
                 ],
               ),
             ),
             Expanded(
-              child: ListView.separated(
+              child: ListView.builder(
                 itemCount: provider.songs.length,
-                separatorBuilder: (context, index) => settings.showListDividers
-                    ? const Divider(height: 1)
-                    : const SizedBox.shrink(),
                 itemBuilder: (context, index) {
                   final song = provider.songs[index];
-                  final isPlaying = Provider.of<PlayerProvider>(context).currentSong?.id == song.id;
+                  final isPlaying = context.watch<PlayerProvider>().currentSong?.id == song.id;
                   
-                  return Container(
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
                     height: settings.listItemHeight,
+                    decoration: BoxDecoration(
+                      color: isPlaying
+                          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
+                          : Theme.of(context).colorScheme.surface,
+                      border: settings.showListDividers
+                          ? Border(
+                              bottom: BorderSide(
+                                color: Theme.of(context).dividerColor.withOpacity(0.1),
+                                width: 1,
+                              ),
+                            )
+                          : null,
+                    ),
                     child: ListTile(
-                      leading: song.coverArtId != null
+                      leading: Hero(
+                        tag: 'cover-${song.id}',
+                        child: Container(
+                          width: 48,
+                          height: 48,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Theme.of(context).shadowColor.withOpacity(0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: song.coverArtId != null
                           ? Image.network(
                               Provider.of<NavidromeService>(context, listen: false)
                                   .getCoverArtUrl(song.coverArtId!),
-                              width: 40,
-                              height: 40,
+                                    width: 48,
+                                    height: 48,
                               fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Container(
-                                  width: 40,
-                                  height: 40,
-                                  color: Colors.grey[200],
-                                  child: const Icon(Icons.album, size: 24),
-                                );
-                              },
+                                    errorBuilder: (context, error, stackTrace) => Container(
+                                      color: Theme.of(context).colorScheme.surfaceVariant,
+                                      child: Icon(
+                                        Icons.music_note,
+                                        color: Theme.of(context).colorScheme.primary,
+                                      ),
+                                    ),
                             )
                           : Container(
-                              width: 40,
-                              height: 40,
-                              color: Colors.grey[200],
-                              child: const Icon(Icons.album, size: 24),
+                                    color: Theme.of(context).colorScheme.surfaceVariant,
+                                    child: Icon(
+                                      Icons.music_note,
+                                      color: Theme.of(context).colorScheme.primary,
+                                    ),
+                                  ),
+                          ),
+                        ),
                             ),
                       title: Text(
                         song.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          color: isPlaying ? Theme.of(context).primaryColor : null,
+                          color: isPlaying
+                              ? Theme.of(context).colorScheme.primary
+                              : Theme.of(context).colorScheme.onSurface,
                           fontWeight: isPlaying ? FontWeight.bold : null,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                       subtitle: Text(
-                        song.artist,
+                        song.artist ?? '未知歌手',
+                        style: TextStyle(
+                          color: isPlaying
+                              ? Theme.of(context).colorScheme.primary.withOpacity(0.7)
+                              : Theme.of(context).colorScheme.onSurface.withOpacity(0.7),
+                        ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Consumer<CacheProvider>(
-                            builder: (context, cacheProvider, child) {
-                              final isCached = cacheProvider.isCached(song.id);
-                              final isDownloading = cacheProvider.isDownloading(song.id);
-                              
-                              if (isDownloading) {
-                                return Stack(
-                                  alignment: Alignment.center,
-                                  children: [
-                                    CircularProgressIndicator(
-                                      value: cacheProvider.getDownloadProgress(song.id),
-                                      strokeWidth: 2,
+                          if (isPlaying)
+                            Icon(
+                              Icons.equalizer,
+                              color: Theme.of(context).colorScheme.primary,
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.stop),
-                                      onPressed: () => cacheProvider.cancelDownload(song.id),
-                                    ),
-                                  ],
-                                );
-                              }
-                              
-                              return IconButton(
-                                icon: Icon(isCached ? Icons.delete : Icons.download),
-                                onPressed: () {
-                                  if (isCached) {
-                                    cacheProvider.removeCachedSong(song.id);
-                                  } else {
-                                    cacheProvider.cacheSong(song);
-                                  }
-                                },
-                              );
-                            },
-                          ),
-                          IconButton(
                             icon: const Icon(Icons.more_vert),
-                            onPressed: () {
-                              showModalBottomSheet(
-                                context: context,
-                                builder: (context) => Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    ListTile(
-                                      leading: const Icon(Icons.playlist_add),
-                                      title: const Text('添加到播放列表'),
-                                      onTap: () {
-                                        Provider.of<PlayerProvider>(context, listen: false)
-                                            .addSongsToPlaylist([song]);
-                                        Navigator.pop(context);
-                                        ScaffoldMessenger.of(context).showSnackBar(
-                                          const SnackBar(
-                                            content: Text('已添加到播放列表'),
-                                            duration: Duration(seconds: 1),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                    Consumer<PlaylistProvider>(
-                                      builder: (context, provider, child) {
-                                        final isStarred = provider.isSongStarred(song.id);
-                                        return ListTile(
-                                          leading: Icon(
-                                            isStarred ? Icons.favorite : Icons.favorite_border
-                                          ),
-                                          title: Text(isStarred ? '取消收藏' : '收藏'),
-                                          onTap: () async {
-                                            Navigator.pop(context);
-                                            await provider.toggleStarSong(song.id);
-                                          },
-                                        );
-                                      },
-                                    ),
-                                    ListTile(
-                                      leading: const Icon(Icons.playlist_add),
-                                      title: const Text('添加到歌单'),
-                                      onTap: () {
-                                        Navigator.pop(context);
-                                        _showAddToPlaylistDialog(context, song);
-                                      },
-                                    ),
-                                  ],
-                                ),
-                              );
-                            },
+                            onPressed: () => _showSongOptions(context, song),
                           ),
                         ],
                       ),
-                      onTap: () {
-                        final playerProvider = Provider.of<PlayerProvider>(context, listen: false);
-                        playerProvider.playSong(song);
-                      },
-                    ),
-                  );
-                },
-              ),
+                                      onTap: () {
+                        _playSong(context, song);
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PlayerPage(song: song),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                        );
+                                      },
+                                    ),
             ),
           ],
         );
@@ -892,7 +1379,10 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
                       final success = await provider.addToPlaylist(playlist.id, song.id);
                       if (success && context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('已添加到歌单')),
+                          const SnackBar(
+                            content: Text('已添加到歌单'),
+                            duration: Duration(seconds: 1),
+                          ),
                         );
                       } else if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -929,7 +1419,7 @@ class _LibraryPageState extends State<LibraryPage> with SingleTickerProviderStat
               controller: nameController,
               decoration: const InputDecoration(
                 labelText: '歌单名称',
-                hintText: '请输入歌单名��',
+                hintText: '请输入歌单名称',
               ),
             ),
             const SizedBox(height: 16),

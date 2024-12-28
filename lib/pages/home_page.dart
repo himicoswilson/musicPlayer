@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/mini_player.dart';
+import '../widgets/custom_navigation_bar.dart';
 import 'library_page.dart';
 import 'playlist_page.dart';
 import 'settings_page.dart';
@@ -30,7 +31,7 @@ class _HomePageState extends State<HomePage> {
         children: [
           // 主内容区域
           _pages[_currentIndex],
-          // 底部播放器
+          // 底部播放器和导航栏
           Positioned(
             left: 0,
             right: 0,
@@ -39,43 +40,18 @@ class _HomePageState extends State<HomePage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const MiniPlayer(),
-                // 底部导航栏
-                Consumer<SettingsProvider>(
-                  builder: (context, settings, child) {
-                    return NavigationBar(
-                      height: settings.navigationBarHeight,
-                      labelBehavior: settings.showNavigationLabels
-                          ? NavigationDestinationLabelBehavior.alwaysShow
-                          : NavigationDestinationLabelBehavior.onlyShowSelected,
-                      selectedIndex: _currentIndex,
-                      onDestinationSelected: (index) {
-                        setState(() {
-                          _currentIndex = index;
-                        });
-                      },
-                      destinations: const [
-                        NavigationDestination(
-                          icon: Icon(Icons.library_music_outlined),
-                          selectedIcon: Icon(Icons.library_music),
-                          label: '音乐库',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.playlist_play_outlined),
-                          selectedIcon: Icon(Icons.playlist_play),
-                          label: '歌单',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.search_outlined),
-                          selectedIcon: Icon(Icons.search),
-                          label: '搜索',
-                        ),
-                        NavigationDestination(
-                          icon: Icon(Icons.settings_outlined),
-                          selectedIcon: Icon(Icons.settings),
-                          label: '设置',
-                        ),
-                      ],
-                    );
+                // 自定义分割线
+                Container(
+                  height: 1,
+                  color: Theme.of(context).dividerColor.withOpacity(0.1),
+                ),
+                // 使用自定义导航栏
+                CustomNavigationBar(
+                  currentIndex: _currentIndex,
+                  onDestinationSelected: (index) {
+                    setState(() {
+                      _currentIndex = index;
+                    });
                   },
                 ),
               ],

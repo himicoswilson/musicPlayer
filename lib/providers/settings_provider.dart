@@ -37,6 +37,17 @@ class SettingsProvider extends ChangeNotifier {
   double _listItemHeight = 64;
   double get listItemHeight => _listItemHeight;
 
+  // 列表项圆角
+  double _listItemBorderRadius = 8.0;
+  double get listItemBorderRadius => _listItemBorderRadius;
+
+  // Hover效果
+  double _hoverBorderRadius = 8.0;
+  double get hoverBorderRadius => _hoverBorderRadius;
+
+  double _hoverOpacity = 0.1;
+  double get hoverOpacity => _hoverOpacity;
+
   // 歌词设置
   static const String _kLyricNormalColorKey = 'lyric_normal_color';
   static const String _kLyricActiveColorKey = 'lyric_active_color';
@@ -90,6 +101,29 @@ class SettingsProvider extends ChangeNotifier {
     }
   }
 
+  // 主题设置
+  ThemeMode _themeMode = ThemeMode.system;
+  ThemeMode get themeMode => _themeMode;
+
+  // 音乐库设置
+  bool _useGridViewForAlbums = true;
+  bool get useGridViewForAlbums => _useGridViewForAlbums;
+
+  double _albumGridCoverSize = 160;
+  double get albumGridCoverSize => _albumGridCoverSize;
+
+  double _albumGridSpacing = 16;
+  double get albumGridSpacing => _albumGridSpacing;
+
+  bool _enableListAnimation = true;
+  bool get enableListAnimation => _enableListAnimation;
+
+  double _tabBarHeight = 48;
+  double get tabBarHeight => _tabBarHeight;
+
+  double _tabBarIndicatorHeight = 32;
+  double get tabBarIndicatorHeight => _tabBarIndicatorHeight;
+
   // 加载设置
   Future<void> loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
@@ -125,6 +159,22 @@ class SettingsProvider extends ChangeNotifier {
     _maxBitRate = prefs.getInt('maxBitRate') ?? 0;
     _autoQuality = prefs.getBool('autoQuality') ?? true;
 
+    // 主题设置
+    _themeMode = ThemeMode.values[prefs.getInt('themeMode') ?? ThemeMode.system.index];
+
+    // 加载音乐库设置
+    _useGridViewForAlbums = prefs.getBool('useGridViewForAlbums') ?? true;
+    _albumGridCoverSize = prefs.getDouble('albumGridCoverSize') ?? 160;
+    _albumGridSpacing = prefs.getDouble('albumGridSpacing') ?? 16;
+    _enableListAnimation = prefs.getBool('enableListAnimation') ?? true;
+    _tabBarHeight = prefs.getDouble('tabBarHeight') ?? 48;
+    _tabBarIndicatorHeight = prefs.getDouble('tabBarIndicatorHeight') ?? 32;
+
+    // 加载列表项圆角和Hover效果设置
+    _listItemBorderRadius = prefs.getDouble('listItemBorderRadius') ?? 8.0;
+    _hoverBorderRadius = prefs.getDouble('hoverBorderRadius') ?? 8.0;
+    _hoverOpacity = prefs.getDouble('hoverOpacity') ?? 0.1;
+
     notifyListeners();
   }
 
@@ -151,6 +201,22 @@ class SettingsProvider extends ChangeNotifier {
     // 列表样式
     await prefs.setBool('showListDividers', _showListDividers);
     await prefs.setDouble('listItemHeight', _listItemHeight);
+
+    // 主题设置
+    await prefs.setInt('themeMode', _themeMode.index);
+
+    // 保存音乐库设置
+    await prefs.setBool('useGridViewForAlbums', _useGridViewForAlbums);
+    await prefs.setDouble('albumGridCoverSize', _albumGridCoverSize);
+    await prefs.setDouble('albumGridSpacing', _albumGridSpacing);
+    await prefs.setBool('enableListAnimation', _enableListAnimation);
+    await prefs.setDouble('tabBarHeight', _tabBarHeight);
+    await prefs.setDouble('tabBarIndicatorHeight', _tabBarIndicatorHeight);
+
+    // 保存列表项圆角和Hover效果设置
+    await prefs.setDouble('listItemBorderRadius', _listItemBorderRadius);
+    await prefs.setDouble('hoverBorderRadius', _hoverBorderRadius);
+    await prefs.setDouble('hoverOpacity', _hoverOpacity);
   }
 
   // 更新设置
@@ -214,6 +280,24 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateListItemBorderRadius(double radius) {
+    _listItemBorderRadius = radius;
+    _saveSettings();
+    notifyListeners();
+  }
+
+  void updateHoverBorderRadius(double radius) {
+    _hoverBorderRadius = radius;
+    _saveSettings();
+    notifyListeners();
+  }
+
+  void updateHoverOpacity(double opacity) {
+    _hoverOpacity = opacity;
+    _saveSettings();
+    notifyListeners();
+  }
+
   // 恢复所有设置为默认值
   Future<void> resetAllSettings() async {
     // 主题色
@@ -235,6 +319,9 @@ class SettingsProvider extends ChangeNotifier {
     // 列表样式
     _showListDividers = false;
     _listItemHeight = 64;
+
+    // 主题设置
+    _themeMode = ThemeMode.system;
 
     await _saveSettings();
     notifyListeners();
@@ -294,5 +381,43 @@ class SettingsProvider extends ChangeNotifier {
       await prefs.setBool('autoQuality', enabled);
       notifyListeners();
     }
+  }
+
+  // 更新主题模式
+  void updateThemeMode(ThemeMode mode) {
+    _themeMode = mode;
+    _saveSettings();
+    notifyListeners();
+  }
+
+  // 更新音乐库设置
+  void toggleGridViewForAlbums(bool value) {
+    _useGridViewForAlbums = value;
+    _saveSettings();
+    notifyListeners();
+  }
+
+  void updateAlbumGridCoverSize(double size) {
+    _albumGridCoverSize = size;
+    _saveSettings();
+    notifyListeners();
+  }
+
+  void updateAlbumGridSpacing(double spacing) {
+    _albumGridSpacing = spacing;
+    _saveSettings();
+    notifyListeners();
+  }
+
+  void updateTabBarHeight(double height) {
+    _tabBarHeight = height;
+    _saveSettings();
+    notifyListeners();
+  }
+
+  void updateTabBarIndicatorHeight(double height) {
+    _tabBarIndicatorHeight = height;
+    _saveSettings();
+    notifyListeners();
   }
 } 

@@ -43,7 +43,10 @@ class _PlayerPageState extends State<PlayerPage> {
         }
 
         return Scaffold(
+          extendBodyBehindAppBar: true,
           appBar: AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
             leading: IconButton(
               icon: const Icon(Icons.keyboard_arrow_down),
               onPressed: () => Navigator.pop(context),
@@ -74,23 +77,43 @@ class _PlayerPageState extends State<PlayerPage> {
             ],
             centerTitle: true,
           ),
-          body: Column(
+          body: Stack(
             children: [
-              // 专辑面或歌词显示区域
-              Expanded(
-                child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      _showLyrics = !_showLyrics;
-                    });
-                  },
-                  child: _showLyrics
-                      ? _buildLyricView(playerProvider, settingsProvider)
-                      : _buildCoverView(playerProvider),
+              // 背景渐变
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                      settingsProvider.primaryColor.withOpacity(0.2),
+                      Theme.of(context).scaffoldBackgroundColor,
+                    ],
+                  ),
                 ),
               ),
-              // 播放控制区域
-              _buildControlPanel(playerProvider),
+              // 主要内容
+              SafeArea(
+                child: Column(
+                  children: [
+                    // 专辑面或歌词显示区域
+                    Expanded(
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _showLyrics = !_showLyrics;
+                          });
+                        },
+                        child: _showLyrics
+                            ? _buildLyricView(playerProvider, settingsProvider)
+                            : _buildCoverView(playerProvider),
+                      ),
+                    ),
+                    // 播放控制区域
+                    _buildControlPanel(playerProvider),
+                  ],
+                ),
+              ),
             ],
           ),
         );
